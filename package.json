@@ -7,7 +7,7 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/patpil-cloudflare-mcp/terminy-leczenia.git"
+    "url": "git+https://github.com/cloudflare-mcp-apps/terminy-leczenia.git"
   },
   "keywords": [
     "mcp",
