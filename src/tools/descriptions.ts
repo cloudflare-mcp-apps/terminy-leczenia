@@ -1,152 +1,139 @@
 /**
- * Tool Descriptions and Metadata
+ * Tool descriptions for Terminy Leczenia NFZ MCP server.
  *
- * Centralized metadata for all MCP server tools.
- * Follows the 4-part description pattern from TOOL_DESCRIPTION_BEST_PRACTICES.md
- *
- * Pattern: Purpose -> Returns -> Use Case -> Constraints
- *
- * Security Notes:
- * - NO API/service names in descriptions (only functional capabilities)
- * - NO implementation details (e.g., "fast and cheap", "bounding box")
+ * 4-part pattern: Purpose → Returns → Use Case → Constraints.
+ * Tool descriptions deliberately chain (canonical map-server pattern):
+ * `lookup_benefit` is referenced as a precondition from `search_appointments`,
+ * etc.
  *
  * @module tools/descriptions
  */
 
-/**
- * Metadata structure for a single tool
- */
 export interface ToolMetadata {
-  /** Display name for UI and tool listings */
   title: string;
-
-  /** 4-part description pattern */
   description: {
-    /** Part 1: Action verb + what it does (1-2 sentences) */
     part1_purpose: string;
-
-    /** Part 2: Explicit data fields returned (1 sentence) */
     part2_returns: string;
-
-    /** Part 3: When/why to use this tool (1 sentence) */
     part3_useCase: string;
-
-    /** Part 4: Limitations, edge cases, constraints (1-3 sentences) */
     part4_constraints: string;
   };
-
-  /** Use case examples for documentation and testing */
-  examples: {
-    /** Short scenario name */
-    scenario: string;
-
-    /** Detailed description of the use case */
-    description: string;
-  }[];
+  examples: { scenario: string; description: string }[];
 }
 
-/**
- * Tool metadata registry
- *
- * TODO: Replace example tool with your actual tools
- *
- * Contains complete metadata for all tools including descriptions
- * and use case examples.
- */
 export const TOOL_METADATA = {
-  /**
-   * Example Tool
-   *
-   * TODO: Replace with your actual tool definitions
-   * Each tool should follow the 4-part description pattern:
-   * 1. Purpose: What it does
-   * 2. Returns: What data it returns
-   * 3. Use Case: When to use it
-   * 4. Constraints: Limitations and edge cases
-   */
-  "example-tool": {
-    title: "Example Tool",
-
+  search_appointments: {
+    title: "Search NFZ Appointments",
     description: {
-      part1_purpose: "Performs an example operation on the provided input.",
-
-      part2_returns: "Returns the result object with processed data, status, and metadata fields.",
-
-      part3_useCase: "Use this when you need to demonstrate the tool pattern or test the MCP server setup.",
-
-      part4_constraints: "Note: This is a placeholder tool. Replace with your actual implementation. Input must be non-empty."
+      part1_purpose:
+        "Searches the public Polish healthcare appointment-queue system for the first available treatment date for a given benefit, optionally filtered by voivodeship, locality, urgency, and paediatric scope.",
+      part2_returns:
+        "Returns up to 25 ranked queue entries with provider, place, address, phone, first-available date, wait-time statistics (people in queue, average wait), accessibility flags (toilet, ramp, car-park, elevator), geographic coordinates, and a flag indicating whether the same provider offers the benefit at other locations — rendered as an interactive map + list widget.",
+      part3_useCase:
+        "Use whenever the patient asks where or when they can get a specific healthcare benefit (examples: 'najszybszy rezonans kolana w Mazowieckiem', 'kardiolog dla dziecka w Krakowie pilnie').",
+      part4_constraints:
+        "At least one of {benefit, province} must be provided. Benefit names must be substrings of official dictionary entries — ALWAYS call lookup_benefit first if you do not have an exact NFZ name. Max 25 results per call. Wait-time snapshots are sampled monthly by NFZ; check dates.snapshot_date for freshness.",
     },
-
     examples: [
       {
-        scenario: "Basic usage",
-        description: "Call the tool with a simple input to verify server connectivity"
+        scenario: "Stable cardiology consultation in Mazowieckie",
+        description: "search_appointments(benefit='KARDIOLOGICZNA', province='07', case=1, limit=10)",
       },
       {
-        scenario: "Error handling",
-        description: "Test tool behavior with invalid input to verify error responses"
-      }
-    ]
-  } as const satisfies ToolMetadata,
+        scenario: "Urgent paediatric MRI in Małopolskie",
+        description: "search_appointments(benefit='REZONANS MAGNETYCZNY', province='06', case=2, benefit_for_children=true)",
+      },
+    ],
+  },
 
-  // TODO: Add your tools here following this pattern:
-  //
-  // "your-tool-name": {
-  //   title: "Your Tool Name",
-  //   description: {
-  //     part1_purpose: "What the tool does...",
-  //     part2_returns: "Returns X, Y, Z...",
-  //     part3_useCase: "Use when...",
-  //     part4_constraints: "Note: limitations..."
-  //   },
-  //   examples: [
-  //     { scenario: "Example 1", description: "..." }
-  //   ]
-  // } as const satisfies ToolMetadata,
+  list_other_places: {
+    title: "List Other Locations of Same Provider",
+    description: {
+      part1_purpose:
+        "Lists every other location where the same healthcare provider offers the same benefit, with each location's distinct first-available date.",
+      part2_returns:
+        "Returns a list of places (address, locality, phone, geo, wait date, statistics, accessibility) — wait times can differ dramatically across locations of one provider (live probe data showed a 67-day spread within one provider). Rendered as an inline drawer in the parent map widget.",
+      part3_useCase:
+        "Use when the patient asks 'are there other locations of this same place' OR after a search_appointments result with has_other_places=true to surface a faster alternative at the same provider.",
+      part4_constraints:
+        "Input is the queue_id (UUID) from a search_appointments result. Only meaningful when the original result had has_other_places=true (NFZ flag many-places='Y').",
+    },
+    examples: [
+      {
+        scenario: "Same provider, alternative locations",
+        description: "list_other_places(queue_id='51fce308-2de6-0c37-e063-b4200a0a4cb3')",
+      },
+    ],
+  },
 
-} as const;
+  lookup_benefit: {
+    title: "Lookup NFZ Benefit Name",
+    description: {
+      part1_purpose:
+        "Returns the official Polish healthcare benefit names matching a substring query — required precondition for search_appointments because the queue API only matches dictionary entries, not freeform terms.",
+      part2_returns:
+        "Returns up to 25 official benefit names (uppercase Polish) as a plain text list, one per line, ranked by NFZ. Examples: query='KARDIOLOG' returns 12 entries including 'ODDZIAŁ KARDIOLOGICZNY', 'REHABILITACJA KARDIOLOGICZNA W WARUNKACH STACJONARNYCH'; query='REZONANS' returns the single entry 'REZONANS MAGNETYCZNY'.",
+      part3_useCase:
+        "Use whenever you do NOT already have an exact dictionary name. Pick the best match from the result list and pass it verbatim to search_appointments.",
+      part4_constraints:
+        "Query must be at least 3 characters. Some patient-intuitive phrases match nothing — e.g., 'PORADNIA KARDIOLOGICZNA' returns 0 results because no such benefit exists; use shorter substrings ('KARDIOLOG') or different terms.",
+    },
+    examples: [
+      {
+        scenario: "Find cardiology-related benefits",
+        description: "lookup_benefit(query='KARDIOLOG') → 12 official names",
+      },
+    ],
+  },
 
-/**
- * Type-safe tool name (for autocomplete and validation)
- */
+  lookup_locality: {
+    title: "Lookup NFZ Locality Name",
+    description: {
+      part1_purpose:
+        "Returns Polish locality names from the NFZ dictionary matching a substring within a specified voivodeship — needed to disambiguate city vs district before passing to search_appointments.",
+      part2_returns:
+        "Returns up to 25 locality names (uppercase Polish) as a plain text list. City districts are separate entries — example: query='Warszawa' in voivodeship 07 returns WARSZAWA, WARSZAWA BEMOWO, WARSZAWA BIAŁOŁĘKA, WARSZAWA BIELANY, WARSZAWA MOKOTÓW, ... (19 total).",
+      part3_useCase:
+        "Use when the patient mentions a city to find both the city itself and its districts. Pass the chosen exact name to search_appointments(locality=...).",
+      part4_constraints:
+        "Query must be at least 3 characters. Voivodeship code (01-16) is required.",
+    },
+    examples: [
+      {
+        scenario: "Warsaw and its districts in Mazowieckie",
+        description: "lookup_locality(query='Warszawa', province='07')",
+      },
+    ],
+  },
+
+  lookup_provider: {
+    title: "Lookup NFZ Healthcare Provider",
+    description: {
+      part1_purpose:
+        "Returns Polish healthcare-provider names from the NFZ dictionary matching a substring within a specified voivodeship.",
+      part2_returns:
+        "Returns up to 25 official provider names (uppercase Polish, often long official forms like '5 WOJSKOWY SZPITAL KLINICZNY Z POLIKLINIKĄ - SAMODZIELNY PUBLICZNY ZAKŁAD OPIEKI ZDROWOTNEJ W KRAKOWIE') as a plain text list.",
+      part3_useCase:
+        "Use when the patient names a specific hospital or clinic ('chcę termin w CMKP', 'w Szpitalu Wolskim') rather than a benefit type.",
+      part4_constraints:
+        "Query must be at least 3 characters. Voivodeship code (01-16) is required. NFZ does not expose direct provider→queues lookup; for that, take a provider name from this list and feed it as a future provider parameter (not implemented in MVP) or filter results returned by search_appointments.",
+    },
+    examples: [
+      {
+        scenario: "Hospitals in Małopolskie",
+        description: "lookup_provider(query='szpital', province='06')",
+      },
+    ],
+  },
+} as const satisfies Record<string, ToolMetadata>;
+
 export type ToolName = keyof typeof TOOL_METADATA;
 
-/**
- * Generate full tool description from metadata
- *
- * Concatenates all 4 parts of the description pattern into a single string
- * suitable for the MCP tool registration `description` field.
- *
- * @param toolName - Name of the tool (type-safe)
- * @returns Full description string following 4-part pattern
- *
- * @example
- * ```typescript
- * const desc = getToolDescription("example-tool");
- * // Returns: "Performs an example operation... Returns the result... Use this when... Note: ..."
- * ```
- */
 export function getToolDescription(toolName: ToolName): string {
   const meta = TOOL_METADATA[toolName];
   const { part1_purpose, part2_returns, part3_useCase, part4_constraints } = meta.description;
-
   return `${part1_purpose} ${part2_returns} ${part3_useCase} ${part4_constraints}`;
 }
 
-/**
- * Get all use case examples for a tool
- *
- * Retrieves documented use cases for testing and documentation purposes.
- *
- * @param toolName - Name of the tool (type-safe)
- * @returns Array of use case examples
- *
- * @example
- * ```typescript
- * const examples = getToolExamples("example-tool");
- * // Returns: [{ scenario: "Basic usage", description: "..." }, ...]
- * ```
- */
 export function getToolExamples(toolName: ToolName): readonly { scenario: string; description: string }[] {
   return TOOL_METADATA[toolName].examples;
 }

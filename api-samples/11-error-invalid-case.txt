@@ -1,0 +1,19 @@
+GET https://api.nfz.gov.pl/app-itl-api/queues?case=3&province=07&benefit=KARDIOLOG
+Observed: HTTP 400 Bad Request (WebFetch returned status, body not captured)
+Expected body per docs (api4.md, error code 1200007):
+{
+  "errors": [
+    {
+      "id": "<uuid>",
+      "errorr-result": "Cannot return results",
+      "errorr-reason": "Invalid value for {case} attribute",
+      "errorr-solution": "Provide proper value for attribute",
+      "error-help": "/errors/#1200007",
+      "error-code": 1200007
+    }
+  ]
+}
+
+Implication: NFZ returns HTTP 400 (NOT 200 with errors array, despite what docs hint).
+Server-side MCP tool must catch fetch !ok and parse error JSON, OR if body unavailable,
+synthesize user-readable message from documented code list (api4.md).

@@ -54,9 +54,10 @@ export interface Env {
   // BUCKET?: R2Bucket;
 
   /**
-   * Cache KV for API response caching
+   * Cache KV for NFZ ITL API response caching.
+   * Keys prefixed `nfz:`. TTL: 24h dictionaries, 1h queue results.
    */
-  // CACHE_KV?: KVNamespace;
+  CACHE_KV: KVNamespace;
 
   /**
    * Browser Rendering for headless browser operations

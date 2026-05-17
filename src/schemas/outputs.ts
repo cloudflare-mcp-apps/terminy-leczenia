@@ -1,36 +1,86 @@
 /**
- * Output Schemas for {{SERVER_NAME}} MCP Tools
+ * Output Types for Terminy Leczenia NFZ tools.
  *
- * Zod validation schemas for tool output responses.
- * These are RAW shapes (not wrapped in z.object) for SDK compatibility.
+ * Normalized shapes returned to widget and structuredContent.
  *
  * @module schemas/outputs
  */
 
-import * as z from "zod/v4";
+import type { SearchAppointmentsParams } from "./inputs";
 
 /**
- * Output schema for example_tool
- *
- * TODO: Replace with your tool's output structure
+ * One normalized queue result — flat camelCase derived from raw queue-attributes
+ * plus computed `wait_days_from_today`.
  */
-export const ExampleToolOutputSchema = z.object({
-  message: z.string().meta({
-    description: "Result message"
-  }),
-  data: z.any().meta({
-    description: "Result data payload"
-  }),
-  widget_uri: z.string().optional().meta({
-    description: "UI resource URI for widget rendering (if applicable)"
-  })
-});
+export interface NormalizedQueueResult {
+  queue_id: string;
+  benefit: string;
+  provider: string;
+  place: string;
+  locality: string;
+  address: string;
+  phone: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  wait_date: string;
+  wait_days_from_today: number;
+  snapshot_date: string;
+  awaiting: number | null;
+  average_period_days: number | null;
+  accessibility: {
+    toilet: boolean;
+    ramp: boolean;
+    carPark: boolean;
+    elevator: boolean;
+  };
+  benefits_for_children: boolean;
+  age_range: string | null;
+  has_other_places: boolean;
+}
 
 /**
- * Type inference from schema
+ * Output of `search_appointments`.
  */
-export type ExampleToolOutput = z.infer<typeof ExampleToolOutputSchema>;
+export interface SearchAppointmentsOutput {
+  kind: "search";
+  query: SearchAppointmentsParams;
+  count: number;
+  page: number;
+  total_pages: number;
+  /** Records WITH latitude+longitude — renderable on the map. */
+  results: NormalizedQueueResult[];
+  /** Records WITHOUT geo — rendered in a separate "no-location" panel. */
+  results_no_geo: NormalizedQueueResult[];
+  /** Live NFZ regeneration timestamp (meta.date-modified). */
+  data_freshness: string;
+  /** Newest dates.date-situation-as-at across results, if any. */
+  newest_snapshot: string | null;
+  /** NFZ system banner (e.g. maintenance / info). */
+  banner: { type: "I" | "O"; content: string } | null;
+}
 
-// TODO: Add more output schemas for your tools
-// export const MyToolOutputSchema = z.object({...});
-// export type MyToolOutput = z.infer<typeof MyToolOutputSchema>;
+/**
+ * Output of `list_other_places`.
+ */
+export interface ListOtherPlacesOutput {
+  kind: "other-places";
+  benefit: string;
+  provider: string;
+  /** UUID of the queue from which the user opened this drawer. */
+  origin_queue_id: string;
+  places: NormalizedQueueResult[];
+  data_freshness: string;
+}
+
+/**
+ * Error / info shape — surfaced to widget when NFZ returns HTTP 400 or
+ * a documented info code (1200038 sanatorium, 1200055 referring doctor).
+ */
+export interface ErrorOutput {
+  kind: "error";
+  is_info: boolean;
+  code: number;
+  message: string;
+  /** Optional redirect hint (e.g., skierowania.nfz.gov.pl for code 1200038). */
+  redirect_url?: string;
+}

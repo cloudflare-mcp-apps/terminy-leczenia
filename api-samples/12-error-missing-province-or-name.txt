@@ -1,0 +1,19 @@
+GET https://api.nfz.gov.pl/app-itl-api/queues?case=1
+Observed: HTTP 400 Bad Request (WebFetch returned status, body not captured)
+Expected body per docs (api4.md, error code 1200005):
+{
+  "errors": [
+    {
+      "id": "<uuid>",
+      "errorr-result": "Cannot return results",
+      "errorr-reason": "Wywołanie zasobu wymaga przekazania atrybutu {province} lub {name}",
+      "errorr-solution": "Pass province (01-16) or name (>=3 chars) parameter",
+      "error-help": "/errors/#1200005",
+      "error-code": 1200005
+    }
+  ]
+}
+
+Implication: At least one of {province, name} is REQUIRED for /queues. This must be a
+zod schema invariant in the MCP `search_appointments` tool — either province OR name
+(can be both). LLM cannot call search_appointments with only `case`.
