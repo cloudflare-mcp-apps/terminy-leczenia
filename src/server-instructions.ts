@@ -19,9 +19,10 @@ Terminy Leczenia NFZ — Polish public-healthcare appointment-queue search ("Inf
 - Alternative locations of multi-site providers (wait times can differ by months)
 
 ## Usage Patterns
-1. **lookup_benefit FIRST** when the patient names a procedure, symptom, or specialty in lay language. NFZ's dictionary is organised by DEPARTMENT/CLINIC names (e.g. "ODDZIAŁ OTORYNOLARYNGOLOGICZNY"), NOT by procedure names. Patient says "operacja przegrody nosa" → query "OTOLARYNGOLOGIA"; patient says "rezonans kolana" → query "REZONANS".
-2. **search_appointments** with the exact benefit name + voivodeship code (01-16). Renders the widget.
-3. **list_other_places(queue_id)** when a result has has_other_places=true — surfaces faster alternatives at the same provider.
+1. **search_appointments is the entry point**. You may pass a freeform Polish benefit term ('operacja przegrody nosa', 'rezonans kolana') — if it does not match NFZ's official dictionary, the server returns 0 results PLUS a did_you_mean list of close matches in the same response. Re-call search_appointments with one of those names. Skip lookup_benefit unless the patient explicitly wants to browse the dictionary.
+2. **Missing province?** Don't pre-fill. The server will elicit voivodeship via a form if both benefit and province are missing — let the user pick.
+3. **Mixed paediatric/adult results?** Don't pre-fill benefit_for_children. If results contain both, the server will elicit scope via a form. The result then includes elicited.scope so you know which filter was applied.
+4. **list_other_places(queue_id)** when a result has has_other_places=true — surfaces faster alternatives at the same provider.
 
 ## Disambiguation Rules
 - **case=1 stable** is the default. Use **case=2 urgent** ONLY when the patient explicitly says "pilny" / "urgent".
@@ -29,7 +30,7 @@ Terminy Leczenia NFZ — Polish public-healthcare appointment-queue search ("Inf
 - **locality** parameter is OPTIONAL — patient asking about a whole voivodeship should not get locality filtered; only set it when the patient names a specific city.
 
 ## Response Format
-search_appointments and list_other_places return structuredContent with: results[] (with geo), results_no_geo[] (lat/lng=null edge cases), data_freshness (live NFZ regeneration), newest_snapshot (when queue lengths were last sampled — can be weeks old).
+search_appointments and list_other_places return structuredContent with: results[] (with geo), results_no_geo[] (lat/lng=null edge cases), data_freshness, newest_snapshot, did_you_mean[] (close-match suggestions when count=0), elicited{province, scope} (filters applied via interactive form).
 
 ## Performance & Limits
 - Cold call < 2 s; warm KV cache < 500 ms

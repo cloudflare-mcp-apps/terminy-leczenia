@@ -48,6 +48,11 @@ export interface SearchAppointmentsOutput {
   data_freshness: string;
   newest_snapshot: string | null;
   banner: { type: "I" | "O"; content: string } | null;
+  did_you_mean?: string[];
+  elicited?: {
+    province?: string;
+    scope?: "adult" | "child" | "all";
+  };
 }
 
 export interface ListOtherPlacesOutput {

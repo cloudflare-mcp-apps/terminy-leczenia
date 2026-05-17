@@ -16,7 +16,7 @@ import { RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { getMcpAuthContext } from "agents/mcp";
 
 import type { Env } from "./types";
-import { SERVER_CONFIG, PROVINCE_NAMES } from "./shared/constants";
+import { SERVER_CONFIG, PROVINCE_NAMES, PROVINCE_CODES } from "./shared/constants";
 import { UI_RESOURCES } from "./resources/ui-resources";
 import { loadHtml } from "./helpers/assets";
 import { SERVER_INSTRUCTIONS } from "./server-instructions";
@@ -75,6 +75,113 @@ function asTextResult(text: string, structured: Record<string, unknown>, isError
  * are returned as non-error responses with kind="error", is_info=true so the LLM
  * can relay them to the user.
  */
+// ============================================================================
+// Elicitation helpers — graceful degradation when host doesn't support
+// ============================================================================
+
+/**
+ * Try to elicit a voivodeship from the user mid-tool-call.
+ * Returns the chosen code (01-16) or null if host doesn't support elicitation,
+ * the user cancelled/declined, or the response was malformed.
+ */
+async function tryElicitProvince(server: McpServer): Promise<string | null> {
+  try {
+    const result = await server.server.elicitInput({
+      mode: "form",
+      message:
+        "W którym województwie szukać terminów? Podaj województwo aby zawęzić wyniki.",
+      requestedSchema: {
+        type: "object",
+        properties: {
+          province: {
+            type: "string",
+            title: "Województwo",
+            enum: [...PROVINCE_CODES],
+            enumNames: PROVINCE_CODES.map((c) => PROVINCE_NAMES[c]),
+          },
+        },
+        required: ["province"],
+      },
+    });
+    if (result.action === "accept" && result.content?.province) {
+      const code = String(result.content.province);
+      return PROVINCE_NAMES[code] ? code : null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Try to elicit paediatric/adult scope when results contain a mix and the
+ * caller did not set benefit_for_children. Returns null on host-unsupported,
+ * cancel, decline, or malformed response.
+ */
+async function tryElicitScope(
+  server: McpServer,
+): Promise<"adult" | "child" | "all" | null> {
+  try {
+    const result = await server.server.elicitInput({
+      mode: "form",
+      message:
+        "Wyniki zawierają zarówno oddziały dla dorosłych jak i dziecięce. Wybierz zakres wiekowy pacjenta:",
+      requestedSchema: {
+        type: "object",
+        properties: {
+          scope: {
+            type: "string",
+            title: "Zakres wiekowy",
+            enum: ["adult", "child", "all"],
+            enumNames: ["Dorośli (18+)", "Dzieci (<18)", "Pokaż wszystko"],
+          },
+        },
+        required: ["scope"],
+      },
+    });
+    if (result.action === "accept" && result.content?.scope) {
+      const scope = String(result.content.scope);
+      if (scope === "adult" || scope === "child" || scope === "all") {
+        return scope;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * "Did You Mean" — when search_appointments returned 0 hits, run lookup_benefit
+ * with the full term + each long-enough keyword and union the results.
+ * Used to surface close matches in the same tool result, eliminating the need
+ * for the LLM to do a separate lookup_benefit round-trip.
+ */
+async function findDidYouMean(nfz: NfzClient, benefit: string): Promise<string[]> {
+  const candidates = new Set<string>();
+  const queries = [
+    benefit,
+    ...benefit
+      .split(/[\s,]+/)
+      .map((w) => w.trim())
+      .filter((w) => w.length >= 4)
+      .slice(0, 3),
+  ];
+  for (const q of queries) {
+    if (candidates.size >= 10) break;
+    try {
+      const res = await nfz.listBenefits({ name: q, limit: 10 });
+      for (const r of res.data) {
+        candidates.add(r);
+        if (candidates.size >= 10) break;
+      }
+    } catch {
+      // Skip — NfzApiError or transport error on a fallback query is non-fatal.
+    }
+  }
+  return Array.from(candidates);
+}
+
 function nfzErrorResult(err: NfzApiError, toolName: string): ReturnType<typeof asTextResult> {
   const output: ErrorOutput = {
     kind: "error",
@@ -99,8 +206,15 @@ function summarizeResults(out: SearchAppointmentsOutput): string {
       out.query.case === 2 ? "case: pilny" : null,
       out.query.benefit_for_children ? "dla dzieci" : null,
     ].filter(Boolean).join(", ");
-    return `Brak wyników dla podanych filtrów (${filters || "—"}). ` +
-      `Spróbuj złagodzić filtry lub użyć lookup_benefit aby znaleźć poprawną nazwę świadczenia.`;
+    let msg = `Brak wyników dla podanych filtrów (${filters || "—"}).`;
+    if (out.did_you_mean && out.did_you_mean.length > 0) {
+      msg +=
+        `\n\n💡 Czy chodziło o jedno z poniższych świadczeń? Ponów wyszukiwanie z dokładną nazwą:\n` +
+        out.did_you_mean.map((s, i) => `${i + 1}. ${s}`).join("\n");
+    } else {
+      msg += ` Spróbuj złagodzić filtry lub użyć lookup_benefit aby znaleźć poprawną nazwę świadczenia.`;
+    }
+    return msg;
   }
 
   const top = [...out.results, ...out.results_no_geo].slice(0, 3);
@@ -131,10 +245,25 @@ function summarizeResults(out: SearchAppointmentsOutput): string {
 
   const total = out.count;
   const shown = out.results.length + out.results_no_geo.length;
+
+  // Surface elicitation context — let the LLM tell the user how the filter
+  // was applied (e.g. "Wybrałeś województwo X" or "Filtruję do dorosłych").
+  const elicitedNote = (() => {
+    if (!out.elicited) return "";
+    const parts: string[] = [];
+    if (out.elicited.province) {
+      parts.push(`woj. ${PROVINCE_NAMES[out.elicited.province] ?? out.elicited.province} (z elicyt.)`);
+    }
+    if (out.elicited.scope === "adult") parts.push("filtr: dorośli");
+    else if (out.elicited.scope === "child") parts.push("filtr: dzieci");
+    else if (out.elicited.scope === "all") parts.push("filtr: bez ograniczenia wieku");
+    return parts.length > 0 ? ` Ustawienia: ${parts.join(", ")}.` : "";
+  })();
+
   const footer =
     `\nZnaleziono ${total} kolejek, pokazano ${shown}. ` +
     `Pełne wyniki + mapa w widgecie. ` +
-    `Dane wygenerowane: ${out.data_freshness.slice(0, 10)}.${staleness}`;
+    `Dane wygenerowane: ${out.data_freshness.slice(0, 10)}.${staleness}${elicitedNote}`;
 
   return lines.join("\n") + footer;
 }
@@ -201,10 +330,11 @@ export function createServer(env: Env): McpServer {
       _meta: { ui: { resourceUri: widgetResource.uri } },
     },
     async (args) => {
-      const params = args as SearchAppointmentsParams;
+      let params = args as SearchAppointmentsParams;
       const auth = getAuth();
       const actionId = crypto.randomUUID();
       const start = Date.now();
+      const elicited: { province?: string; scope?: "adult" | "child" | "all" } = {};
 
       logger.info({
         event: "tool_started",
@@ -215,17 +345,26 @@ export function createServer(env: Env): McpServer {
         args: params as unknown as Record<string, unknown>,
       });
 
-      // Preempt NFZ HTTP 400 (error 1200005) — at least one of {benefit, province} required.
+      // -- Elicit voivodeship when both benefit and province are missing ----
+      // NFZ /queues requires AT LEAST ONE of {benefit, province} (error 1200005).
+      // Instead of failing immediately, try to elicit a voivodeship from the user.
+      // If the host doesn't support elicitation, falls back to the original error.
       if (!params.benefit && !params.province) {
-        const err: ErrorOutput = {
-          kind: "error",
-          is_info: false,
-          code: 1200005,
-          message:
-            "Provide 'benefit' or 'province' — at least one is required. " +
-            "Use lookup_benefit to find an exact NFZ benefit name.",
-        };
-        return asTextResult(err.message, err as unknown as Record<string, unknown>, true);
+        const chosen = await tryElicitProvince(server);
+        if (chosen) {
+          params = { ...params, province: chosen as SearchAppointmentsParams["province"] };
+          elicited.province = chosen;
+        } else {
+          const err: ErrorOutput = {
+            kind: "error",
+            is_info: false,
+            code: 1200005,
+            message:
+              "Provide 'benefit' or 'province' — at least one is required. " +
+              "Use lookup_benefit to find an exact NFZ benefit name.",
+          };
+          return asTextResult(err.message, err as unknown as Record<string, unknown>, true);
+        }
       }
 
       try {
@@ -239,7 +378,30 @@ export function createServer(env: Env): McpServer {
           page: 1,
         });
 
-        const normalized = response.data.map((q) => normalizeQueueAttributes(q.id, q.attributes));
+        let normalized = response.data.map((q) => normalizeQueueAttributes(q.id, q.attributes));
+
+        // -- Elicit paediatric/adult scope on mixed results --------------------
+        // When results contain both adult and paediatric departments AND the
+        // caller did NOT pre-filter, ask the user to disambiguate. Apply the
+        // filter locally (no extra NFZ round-trip).
+        if (params.benefit_for_children === undefined && normalized.length > 0) {
+          const hasAdult = normalized.some((r) => !r.benefits_for_children);
+          const hasPaediatric = normalized.some((r) => r.benefits_for_children);
+          if (hasAdult && hasPaediatric) {
+            const scope = await tryElicitScope(server);
+            if (scope === "adult") {
+              normalized = normalized.filter((r) => !r.benefits_for_children);
+              elicited.scope = "adult";
+            } else if (scope === "child") {
+              normalized = normalized.filter((r) => r.benefits_for_children);
+              elicited.scope = "child";
+            } else if (scope === "all") {
+              elicited.scope = "all";
+            }
+            // null → host didn't support elicit, or user declined; no filter.
+          }
+        }
+
         const results = normalized.filter(
           (r): r is NormalizedQueueResult & { latitude: number; longitude: number } =>
             r.latitude !== null && r.longitude !== null,
@@ -255,6 +417,15 @@ export function createServer(env: Env): McpServer {
         const limit = response.meta.limit ?? (params.limit ?? 10);
         const totalPages = limit > 0 ? Math.ceil(totalCount / limit) : 1;
 
+        // -- Did You Mean: 0 results with a benefit → fetch suggestions -------
+        // Run lookup_benefit with the original term + extracted keywords so the
+        // LLM gets close matches without a separate tool round-trip.
+        let didYouMean: string[] | undefined;
+        if (normalized.length === 0 && params.benefit) {
+          const suggestions = await findDidYouMean(nfz, params.benefit);
+          if (suggestions.length > 0) didYouMean = suggestions;
+        }
+
         const output: SearchAppointmentsOutput = {
           kind: "search",
           query: { ...params, case: params.case ?? 1 },
@@ -266,6 +437,8 @@ export function createServer(env: Env): McpServer {
           data_freshness: response.meta["date-modified"],
           newest_snapshot: newestSnapshot,
           banner: response.meta.message,
+          did_you_mean: didYouMean,
+          elicited: Object.keys(elicited).length > 0 ? elicited : undefined,
         };
 
         logger.info({

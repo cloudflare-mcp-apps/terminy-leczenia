@@ -31,10 +31,13 @@ export const TOOL_METADATA = {
       part3_useCase:
         "Use whenever the patient asks where or when they can get a specific healthcare benefit (examples: 'najszybszy rezonans kolana w Mazowieckiem', 'kardiolog dla dziecka w Krakowie pilnie').",
       part4_constraints:
-        "At least one of {benefit, province} must be provided. Benefit names must be substrings of official dictionary entries — ALWAYS call lookup_benefit first if you do not have an exact NFZ name. " +
-        "ADULT vs PAEDIATRIC: when the patient is an adult (or age unspecified), set benefit_for_children=false — paediatric departments are SEPARATE NFZ entries (e.g. 'ODDZIAŁ OTOLARYNGOLOGICZNY DZIECIĘCY') and will otherwise mix into results. " +
-        "URGENCY: default to case=1 (stable); use case=2 (urgent) only when the patient explicitly says 'pilny' / 'urgent'. " +
-        "LOCALITY is OPTIONAL: only set when the patient names a specific city — omitting it returns whole-voivodeship results. Max 25 results per call. Wait-time snapshots are sampled monthly by NFZ; surface dates.snapshot_date to the user.",
+        "INTERACTIVE BEHAVIOR (let the server elicit): " +
+        "(a) If both benefit and province are missing, the server elicits voivodeship via a form — DO NOT pre-fill defaults. " +
+        "(b) If the freeform benefit does not match the NFZ dictionary, the response carries did_you_mean[] with close matches — re-call with one of those names. " +
+        "(c) If results mix paediatric and adult departments AND benefit_for_children was not set, the server elicits scope via a form — DO NOT pre-fill benefit_for_children. " +
+        "URGENCY: default to case=1 (stable); use case=2 only when the patient explicitly says 'pilny' / 'urgent'. " +
+        "LOCALITY: only set when the patient names a specific city. " +
+        "Max 25 results per call. The `elicited` field in the response tells you which filters were applied via form.",
     },
     examples: [
       {

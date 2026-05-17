@@ -57,6 +57,22 @@ export interface SearchAppointmentsOutput {
   newest_snapshot: string | null;
   /** NFZ system banner (e.g. maintenance / info). */
   banner: { type: "I" | "O"; content: string } | null;
+  /**
+   * Server-side "Did You Mean" — when NFZ returns 0 hits for a benefit term,
+   * the server runs lookup_benefit with keyword fallbacks and surfaces close
+   * matches here so the LLM can re-run search_appointments without a separate
+   * lookup_benefit round-trip.
+   */
+  did_you_mean?: string[];
+  /**
+   * Set when an elicitation step actually fired (e.g. user disambiguated
+   * paediatric/adult scope mid-call). LLM can mention to the user how the
+   * filter was applied.
+   */
+  elicited?: {
+    province?: string;
+    scope?: "adult" | "child" | "all";
+  };
 }
 
 /**

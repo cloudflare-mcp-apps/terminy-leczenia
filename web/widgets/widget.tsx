@@ -614,6 +614,42 @@ function Widget() {
   }
 
   const { data } = status;
+
+  // Did-You-Mean state — server returned 0 results plus close-match suggestions.
+  // Render a focused disambiguation panel instead of the full map+list shell.
+  if (data.count === 0 && data.did_you_mean && data.did_you_mean.length > 0) {
+    return (
+      <div className="h-[500px] w-full flex items-center justify-center p-4" style={safeAreaStyle}>
+        <div className="max-w-md w-full p-4 border rounded bg-card">
+          <div className="font-semibold mb-1">Brak dokładnego dopasowania</div>
+          <div className="text-xs text-muted-foreground mb-3">
+            Brak wyników dla{" "}
+            <strong className="font-mono">{data.query.benefit ?? "(brak)"}</strong>.
+            Czy chodziło o jedno z poniższych świadczeń?
+          </div>
+          <div className="space-y-1 max-h-72 overflow-y-auto">
+            {data.did_you_mean.map((name) => (
+              <button
+                key={name}
+                type="button"
+                className="w-full text-left text-xs p-2 border rounded hover:bg-secondary cursor-pointer min-h-11"
+                onClick={async () => {
+                  if (!app) return;
+                  await app.callServerTool({
+                    name: "search_appointments",
+                    arguments: { ...data.query, benefit: name },
+                  });
+                }}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const filteredGeo = applyFilters(data.results, filters);
   const filteredNoGeo = applyFilters(data.results_no_geo, filters);
   const totalFiltered = filteredGeo.length + filteredNoGeo.length;
