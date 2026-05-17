@@ -308,7 +308,10 @@ function isY(value: "Y" | "N" | null | undefined): boolean {
 export function normalizeQueueAttributes(
   id: string,
   a: QueueAttributes,
-): NormalizedQueueResult {
+): NormalizedQueueResult | null {
+  // NFZ observed (2026-05-17) returning `dates: null` for some queue records.
+  // We skip such records — without a wait date they're unrenderable.
+  if (!a.dates || !a.dates.date) return null;
   return {
     queue_id: id,
     benefit: a.benefit ?? "",
@@ -321,7 +324,7 @@ export function normalizeQueueAttributes(
     longitude: a.longitude,
     wait_date: a.dates.date,
     wait_days_from_today: daysFromToday(a.dates.date),
-    snapshot_date: a.dates["date-situation-as-at"],
+    snapshot_date: a.dates["date-situation-as-at"] ?? a.dates.date,
     awaiting: a.statistics["provider-data"]?.awaiting ?? null,
     average_period_days: a.statistics["provider-data"]?.["average-period"] ?? null,
     accessibility: {
@@ -343,7 +346,8 @@ export function normalizeManyPlacesQueue(
   id: string,
   a: ManyPlacesAttributes,
   parent: { benefit: string; provider: string },
-): NormalizedQueueResult {
+): NormalizedQueueResult | null {
+  if (!a.dates || !a.dates.date) return null;
   return {
     queue_id: id,
     benefit: parent.benefit,
@@ -356,7 +360,7 @@ export function normalizeManyPlacesQueue(
     longitude: a.longitude,
     wait_date: a.dates.date,
     wait_days_from_today: daysFromToday(a.dates.date),
-    snapshot_date: a.dates["date-situation-as-at"],
+    snapshot_date: a.dates["date-situation-as-at"] ?? a.dates.date,
     awaiting: a.statistics["provider-data"]?.awaiting ?? null,
     average_period_days: a.statistics["provider-data"]?.["average-period"] ?? null,
     accessibility: {

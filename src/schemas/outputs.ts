@@ -73,6 +73,18 @@ export interface SearchAppointmentsOutput {
     province?: string;
     scope?: "adult" | "child" | "all";
   };
+  /**
+   * Fallback signal when the host does NOT support `elicitation/create`
+   * (e.g. AWS Bedrock as of 2026-05). The widget renders inline buttons for
+   * the user to pick the disambiguator; the LLM is instructed to ask the
+   * user in chat if no widget is available.
+   */
+  disambiguation_needed?: {
+    /** Province enum needed (when both benefit and province missing). */
+    province?: boolean;
+    /** Scope enum needed (when results have both adult and paediatric records). */
+    scope?: { has_adult: boolean; has_paediatric: boolean };
+  };
 }
 
 /**

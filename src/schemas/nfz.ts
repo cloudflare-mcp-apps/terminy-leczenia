@@ -75,11 +75,16 @@ export interface QueueAttributes {
     /** Always null in current NFZ output (May 2026). */
     "computed-data": null;
   };
+  /**
+   * Production-observed (2026-05-17): NFZ may return `dates: null` for some
+   * queue records (queue closed / no schedule / data gap). Normalizers MUST
+   * tolerate null at any level.
+   */
   dates: {
     applicable: boolean;
-    date: string;
-    "date-situation-as-at": string;
-  };
+    date: string | null;
+    "date-situation-as-at": string | null;
+  } | null;
   /** Always null in /queues output (May 2026). */
   "benefits-provided": null;
 }

@@ -217,7 +217,27 @@ function summarizeResults(out: SearchAppointmentsOutput): string {
     return msg;
   }
 
-  const top = [...out.results, ...out.results_no_geo].slice(0, 3);
+  // Locality post-filter: if the user asked for a specific city, surface
+  // matching records first in the text summary (case + diacritics insensitive).
+  // Falls back to whole result set if no matches.
+  const allResults = [...out.results, ...out.results_no_geo];
+  const requestedLocality = out.query.locality?.trim().toLowerCase();
+  const normalizeStr = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const matchingLocality = requestedLocality
+    ? allResults.filter((r) => normalizeStr(r.locality) === normalizeStr(requestedLocality))
+    : [];
+  const localityNote = (() => {
+    if (!requestedLocality) return "";
+    if (matchingLocality.length === 0) {
+      return ` ℹ Brak wyników w "${out.query.locality}" — pokazuję najbliższe w województwie.`;
+    }
+    if (matchingLocality.length < allResults.length) {
+      return ` Filtrowanie do "${out.query.locality}" (${matchingLocality.length} placówek).`;
+    }
+    return "";
+  })();
+  const top = (matchingLocality.length > 0 ? matchingLocality : allResults).slice(0, 3);
   const lines = top.map((r, i) => {
     const days = r.wait_days_from_today;
     const when =
@@ -260,10 +280,25 @@ function summarizeResults(out: SearchAppointmentsOutput): string {
     return parts.length > 0 ? ` Ustawienia: ${parts.join(", ")}.` : "";
   })();
 
+  // Disambiguation hint (when host doesn't support elicit, e.g. AWS Bedrock).
+  const disambigNote = (() => {
+    const d = out.disambiguation_needed;
+    if (!d) return "";
+    const hints: string[] = [];
+    if (d.province) hints.push("zapytaj użytkownika o województwo (01-16)");
+    if (d.scope) {
+      hints.push(
+        "wyniki zawierają oddziały dla dorosłych ORAZ dziecięce — zapytaj użytkownika o zakres wiekowy " +
+          "(potem ponów z benefit_for_children=false dla dorosłych, =true dla dzieci)",
+      );
+    }
+    return hints.length > 0 ? ` ⚠ Disambiguation: ${hints.join("; ")}.` : "";
+  })();
+
   const footer =
-    `\nZnaleziono ${total} kolejek, pokazano ${shown}. ` +
+    `\nZnaleziono ${total} kolejek, pokazano ${shown}.${localityNote} ` +
     `Pełne wyniki + mapa w widgecie. ` +
-    `Dane wygenerowane: ${out.data_freshness.slice(0, 10)}.${staleness}${elicitedNote}`;
+    `Dane wygenerowane: ${out.data_freshness.slice(0, 10)}.${staleness}${elicitedNote}${disambigNote}`;
 
   return lines.join("\n") + footer;
 }
@@ -335,6 +370,10 @@ export function createServer(env: Env): McpServer {
       const actionId = crypto.randomUUID();
       const start = Date.now();
       const elicited: { province?: string; scope?: "adult" | "child" | "all" } = {};
+      const disambiguationNeeded: {
+        province?: boolean;
+        scope?: { has_adult: boolean; has_paediatric: boolean };
+      } = {};
 
       logger.info({
         event: "tool_started",
@@ -355,13 +394,17 @@ export function createServer(env: Env): McpServer {
           params = { ...params, province: chosen as SearchAppointmentsParams["province"] };
           elicited.province = chosen;
         } else {
+          // Host doesn't support elicit OR user declined. Signal widget/LLM
+          // that disambiguation is needed inline rather than returning a
+          // hard error (better UX on Bedrock-style hosts without elicit).
+          disambiguationNeeded.province = true;
           const err: ErrorOutput = {
             kind: "error",
             is_info: false,
             code: 1200005,
             message:
               "Provide 'benefit' or 'province' — at least one is required. " +
-              "Use lookup_benefit to find an exact NFZ benefit name.",
+              "Ask the user which voivodeship (01-16) they want to search.",
           };
           return asTextResult(err.message, err as unknown as Record<string, unknown>, true);
         }
@@ -378,12 +421,13 @@ export function createServer(env: Env): McpServer {
           page: 1,
         });
 
-        let normalized = response.data.map((q) => normalizeQueueAttributes(q.id, q.attributes));
+        // Defensive: drop records with null dates (NFZ data gap — production
+        // crash 2026-05-17 on TORUŃ filter). Normalizer returns null for these.
+        let normalized = response.data
+          .map((q) => normalizeQueueAttributes(q.id, q.attributes))
+          .filter((r): r is NormalizedQueueResult => r !== null);
 
         // -- Elicit paediatric/adult scope on mixed results --------------------
-        // When results contain both adult and paediatric departments AND the
-        // caller did NOT pre-filter, ask the user to disambiguate. Apply the
-        // filter locally (no extra NFZ round-trip).
         if (params.benefit_for_children === undefined && normalized.length > 0) {
           const hasAdult = normalized.some((r) => !r.benefits_for_children);
           const hasPaediatric = normalized.some((r) => r.benefits_for_children);
@@ -397,8 +441,12 @@ export function createServer(env: Env): McpServer {
               elicited.scope = "child";
             } else if (scope === "all") {
               elicited.scope = "all";
+            } else {
+              // Host doesn't support elicit (e.g. AWS Bedrock) — signal the
+              // widget to render inline disambiguation buttons, and tell the
+              // LLM to ask the user in chat.
+              disambiguationNeeded.scope = { has_adult: hasAdult, has_paediatric: hasPaediatric };
             }
-            // null → host didn't support elicit, or user declined; no filter.
           }
         }
 
@@ -439,6 +487,8 @@ export function createServer(env: Env): McpServer {
           banner: response.meta.message,
           did_you_mean: didYouMean,
           elicited: Object.keys(elicited).length > 0 ? elicited : undefined,
+          disambiguation_needed:
+            Object.keys(disambiguationNeeded).length > 0 ? disambiguationNeeded : undefined,
         };
 
         logger.info({
@@ -509,9 +559,9 @@ export function createServer(env: Env): McpServer {
           benefit: response.data.attributes.benefit,
           provider: response.data.attributes.provider,
         };
-        const places = response.data.attributes.places.map((p) =>
-          normalizeManyPlacesQueue(p.id, p.attributes, parent),
-        );
+        const places = response.data.attributes.places
+          .map((p) => normalizeManyPlacesQueue(p.id, p.attributes, parent))
+          .filter((r): r is NormalizedQueueResult => r !== null);
 
         const output: ListOtherPlacesOutput = {
           kind: "other-places",

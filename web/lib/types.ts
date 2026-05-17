@@ -53,6 +53,10 @@ export interface SearchAppointmentsOutput {
     province?: string;
     scope?: "adult" | "child" | "all";
   };
+  disambiguation_needed?: {
+    province?: boolean;
+    scope?: { has_adult: boolean; has_paediatric: boolean };
+  };
 }
 
 export interface ListOtherPlacesOutput {

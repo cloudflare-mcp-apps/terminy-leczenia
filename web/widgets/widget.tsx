@@ -654,6 +654,11 @@ function Widget() {
   const filteredNoGeo = applyFilters(data.results_no_geo, filters);
   const totalFiltered = filteredGeo.length + filteredNoGeo.length;
 
+  // Disambiguation banner — host doesn't support elicit, so the server
+  // signals what the user should pick and we render inline buttons.
+  // Clicking re-runs search_appointments with the chosen filter.
+  const scopeNeeded = data.disambiguation_needed?.scope;
+
   return (
     <div className="h-[500px] w-full flex flex-col overflow-hidden bg-background text-foreground" style={safeAreaStyle}>
       <FilterBar
@@ -662,6 +667,42 @@ function Widget() {
         totalCount={data.count}
         shownCount={totalFiltered}
       />
+      {scopeNeeded && (
+        <div className="px-3 py-2 border-b bg-yellow-50 text-yellow-900 text-xs flex items-center gap-2 flex-wrap">
+          <span className="font-medium">
+            👶/👤 Wyniki mieszają oddziały dziecięce i dla dorosłych. Wybierz zakres pacjenta:
+          </span>
+          <button
+            type="button"
+            className="h-8 px-3 rounded border bg-background hover:bg-secondary cursor-pointer"
+            onClick={async () => {
+              if (!app) return;
+              await app.callServerTool({
+                name: "search_appointments",
+                arguments: { ...data.query, benefit_for_children: false },
+              });
+            }}
+          >
+            👤 Dorośli
+          </button>
+          <button
+            type="button"
+            className="h-8 px-3 rounded border bg-background hover:bg-secondary cursor-pointer"
+            onClick={async () => {
+              if (!app) return;
+              await app.callServerTool({
+                name: "search_appointments",
+                arguments: { ...data.query, benefit_for_children: true },
+              });
+            }}
+          >
+            👶 Dzieci
+          </button>
+          <span className="ml-auto text-[10px] text-yellow-700">
+            (lub kontynuuj z mieszanymi poniżej)
+          </span>
+        </div>
+      )}
       <div className="flex-1 min-h-0 flex relative">
         <div className="hidden sm:flex flex-col flex-1 min-h-0 relative">
           <MapView
