@@ -109,15 +109,32 @@ function summarizeResults(out: SearchAppointmentsOutput): string {
     const when =
       days <= 0 ? "dziś" : days === 1 ? "za 1 dzień" : `za ${days} dni`;
     const provider = r.provider.length > 60 ? r.provider.slice(0, 57) + "..." : r.provider;
+    const paediatricNote = r.benefits_for_children ? " 👶 ODDZIAŁ DZIECIĘCY" : "";
     return `${i + 1}. ${r.wait_date} (${when}) — ${provider}, ${r.place}, ${r.locality}` +
+      paediatricNote +
       (r.has_other_places ? " [⊕ inne miejsca dostępne]" : "");
   });
+
+  // Freshness signal: how old is the queue-length snapshot vs. today?
+  // Snapshots > 60 days old warrant a phone-check warning.
+  let staleness = "";
+  if (out.newest_snapshot) {
+    const snapAge = Math.round(
+      (Date.now() - new Date(out.newest_snapshot + "T00:00:00Z").getTime()) /
+        (24 * 60 * 60 * 1000),
+    );
+    staleness =
+      snapAge > 60
+        ? ` ⚠ Snapshot kolejek: ${out.newest_snapshot} (${snapAge} dni temu — sprawdź telefonicznie).`
+        : ` Snapshot kolejek: ${out.newest_snapshot}.`;
+  }
 
   const total = out.count;
   const shown = out.results.length + out.results_no_geo.length;
   const footer =
     `\nZnaleziono ${total} kolejek, pokazano ${shown}. ` +
-    `Pełne wyniki + mapa dostępne w interaktywnym widgecie. Dane aktualne na: ${out.data_freshness}.`;
+    `Pełne wyniki + mapa w widgecie. ` +
+    `Dane wygenerowane: ${out.data_freshness.slice(0, 10)}.${staleness}`;
 
   return lines.join("\n") + footer;
 }

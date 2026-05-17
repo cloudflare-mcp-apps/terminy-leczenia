@@ -31,7 +31,10 @@ export const TOOL_METADATA = {
       part3_useCase:
         "Use whenever the patient asks where or when they can get a specific healthcare benefit (examples: 'najszybszy rezonans kolana w Mazowieckiem', 'kardiolog dla dziecka w Krakowie pilnie').",
       part4_constraints:
-        "At least one of {benefit, province} must be provided. Benefit names must be substrings of official dictionary entries — ALWAYS call lookup_benefit first if you do not have an exact NFZ name. Max 25 results per call. Wait-time snapshots are sampled monthly by NFZ; check dates.snapshot_date for freshness.",
+        "At least one of {benefit, province} must be provided. Benefit names must be substrings of official dictionary entries — ALWAYS call lookup_benefit first if you do not have an exact NFZ name. " +
+        "ADULT vs PAEDIATRIC: when the patient is an adult (or age unspecified), set benefit_for_children=false — paediatric departments are SEPARATE NFZ entries (e.g. 'ODDZIAŁ OTOLARYNGOLOGICZNY DZIECIĘCY') and will otherwise mix into results. " +
+        "URGENCY: default to case=1 (stable); use case=2 (urgent) only when the patient explicitly says 'pilny' / 'urgent'. " +
+        "LOCALITY is OPTIONAL: only set when the patient names a specific city — omitting it returns whole-voivodeship results. Max 25 results per call. Wait-time snapshots are sampled monthly by NFZ; surface dates.snapshot_date to the user.",
     },
     examples: [
       {
@@ -75,7 +78,10 @@ export const TOOL_METADATA = {
       part3_useCase:
         "Use whenever you do NOT already have an exact dictionary name. Pick the best match from the result list and pass it verbatim to search_appointments.",
       part4_constraints:
-        "Query must be at least 3 characters. Some patient-intuitive phrases match nothing — e.g., 'PORADNIA KARDIOLOGICZNA' returns 0 results because no such benefit exists; use shorter substrings ('KARDIOLOG') or different terms.",
+        "Query must be at least 3 characters. " +
+        "CRITICAL: the NFZ dictionary is organised by DEPARTMENT/CLINIC names ('ODDZIAŁ X', 'PORADNIA Y'), NOT procedure names. Translate patient terms to the specialty BEFORE querying. " +
+        "Mapping examples: 'operacja przegrody nosa' / 'septoplastyka' → query 'OTOLARYNGOLOGIA' (yields 'ODDZIAŁ OTORYNOLARYNGOLOGICZNY'); 'usunięcie zaćmy' → query 'OKULISTYCZNY'; 'rezonans kolana' → query 'REZONANS'; 'kardiolog' → query 'KARDIOLOG'. " +
+        "Avoid lay procedure terms ('przegroda nosa' = 0 results) and over-specific phrases ('PORADNIA KARDIOLOGICZNA' = 0 results — use shorter substrings).",
     },
     examples: [
       {

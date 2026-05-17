@@ -4,9 +4,13 @@
 
 **Slug:** `terminy-leczenia` · **SDK:** `^1.29.0` · **ext-apps:** `^1.7.0` · **Protocol:** `2025-11-25`
 
-## Tools (1)
+## Tools (5)
 
-- `example-tool`
+- `search_appointments`
+- `list_other_places`
+- `lookup_benefit`
+- `lookup_locality`
+- `lookup_provider`
 
 ## Resources (1)
 
