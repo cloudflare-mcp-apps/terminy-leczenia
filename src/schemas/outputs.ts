@@ -52,6 +52,14 @@ export interface SearchAppointmentsOutput {
   /** Records WITHOUT geo — rendered in a separate "no-location" panel. */
   results_no_geo: NormalizedQueueResult[];
   /** Live NFZ regeneration timestamp (meta.date-modified). */
+  /**
+   * Number of records skipped during normalization (NFZ returned them with
+   * dates=null — closed queues / data gaps). Helps explain mismatches
+   * between NFZ's reported total and what the widget can render.
+   */
+  count_skipped_invalid?: number;
+  /** Raw NFZ-reported total (kept for transparency vs `count` which is renderable). */
+  count_raw_nfz?: number;
   data_freshness: string;
   /** Newest dates.date-situation-as-at across results, if any. */
   newest_snapshot: string | null;

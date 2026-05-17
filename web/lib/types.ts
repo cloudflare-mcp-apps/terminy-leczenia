@@ -45,6 +45,8 @@ export interface SearchAppointmentsOutput {
   total_pages: number;
   results: NormalizedQueueResult[];
   results_no_geo: NormalizedQueueResult[];
+  count_skipped_invalid?: number;
+  count_raw_nfz?: number;
   data_freshness: string;
   newest_snapshot: string | null;
   banner: { type: "I" | "O"; content: string } | null;

@@ -30,7 +30,14 @@ Terminy Leczenia NFZ — Polish public-healthcare appointment-queue search ("Inf
 - **locality** parameter is OPTIONAL — patient asking about a whole voivodeship should not get locality filtered; only set it when the patient names a specific city.
 
 ## Response Format
-search_appointments and list_other_places return structuredContent with: results[] (with geo), results_no_geo[] (lat/lng=null edge cases), data_freshness, newest_snapshot, did_you_mean[] (close-match suggestions when count=0), elicited{province, scope} (filters applied via interactive form).
+search_appointments and list_other_places return structuredContent with: results[] (with geo), results_no_geo[] (lat/lng=null edge cases), count (renderable, after filtering invalid records), count_raw_nfz, count_skipped_invalid, data_freshness, newest_snapshot, did_you_mean[] (close-match suggestions when count=0), elicited{province, scope} (filters applied via interactive form), disambiguation_needed{province, scope} (widget should render buttons).
+
+## Interaction Boundaries (Claude MCP Apps philosophy)
+Per Claude MCP Apps docs, **filtering of already-displayed data is widget territory**, not chat. When the response carries disambiguation_needed:
+- The widget renders inline filter buttons (👤 / 👶) automatically.
+- DO NOT also ask the user the same question in chat — that creates redundant double-questioning.
+- DO briefly summarise the dual-top sections that already arrived in your text response (the server pre-segregates "earliest for adults" vs "earliest for children").
+- Only narrate disambiguation when text-only summary is the ONLY output channel (rare — most hosts render the widget).
 
 ## Performance & Limits
 - Cold call < 2 s; warm KV cache < 500 ms

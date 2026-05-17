@@ -76,8 +76,24 @@ function asTextResult(text: string, structured: Record<string, unknown>, isError
  * can relay them to the user.
  */
 // ============================================================================
-// Elicitation helpers — graceful degradation when host doesn't support
+// Elicitation helpers — forward-compatible with Claude.ai roadmap
 // ============================================================================
+//
+// MCP Spec 2025-11-25 §Elicitation. Host support status as of 2026-05:
+// - Claude Code (CLI): ✅ implemented
+// - Claude.ai (web/desktop): ⏳ planned — Anthropic engineer @ochafik
+//   self-assigned the feature request (github "Add elicitation support to
+//   Claude.ai" 2026-04-06). NOT a dead path — will activate automatically
+//   when Claude.ai ships the capability.
+// - AWS Bedrock MCP client: ❌ not implemented, falls through to
+//   disambiguation_needed widget banner.
+// - basic-host (ext-apps test harness): partial.
+//
+// Always-on fallback: when elicit returns null (host unsupported or user
+// declined), we set structuredContent.disambiguation_needed so the widget
+// renders inline buttons. Both paths converge on the same filtered output —
+// elicit is the cleaner single-shot UX, widget banner is the two-call
+// graceful degradation.
 
 /**
  * Try to elicit a voivodeship from the user mid-tool-call.
@@ -237,17 +253,39 @@ function summarizeResults(out: SearchAppointmentsOutput): string {
     }
     return "";
   })();
-  const top = (matchingLocality.length > 0 ? matchingLocality : allResults).slice(0, 3);
-  const lines = top.map((r, i) => {
+  const candidateTop = matchingLocality.length > 0 ? matchingLocality : allResults;
+  const formatLine = (r: NormalizedQueueResult, i: number): string => {
     const days = r.wait_days_from_today;
     const when =
       days <= 0 ? "dziś" : days === 1 ? "za 1 dzień" : `za ${days} dni`;
     const provider = r.provider.length > 60 ? r.provider.slice(0, 57) + "..." : r.provider;
-    const paediatricNote = r.benefits_for_children ? " 👶 ODDZIAŁ DZIECIĘCY" : "";
     return `${i + 1}. ${r.wait_date} (${when}) — ${provider}, ${r.place}, ${r.locality}` +
-      paediatricNote +
       (r.has_other_places ? " [⊕ inne miejsca dostępne]" : "");
-  });
+  };
+
+  // Dual-top when adult+paediatric mix and no scope filter chosen yet — split
+  // sections so the LLM can immediately surface "earliest for adults" vs
+  // "earliest for children" without re-scanning the full result list.
+  let lines: string[];
+  const scope = out.disambiguation_needed?.scope;
+  if (scope && scope.has_adult && scope.has_paediatric) {
+    const adults = candidateTop.filter((r) => !r.benefits_for_children).slice(0, 3);
+    const children = candidateTop.filter((r) => r.benefits_for_children).slice(0, 3);
+    const sections: string[] = [];
+    if (adults.length > 0) {
+      sections.push("👤 Najszybsze DLA DOROSŁYCH:\n" + adults.map(formatLine).join("\n"));
+    }
+    if (children.length > 0) {
+      sections.push("👶 Najszybsze DLA DZIECI:\n" + children.map(formatLine).join("\n"));
+    }
+    lines = [sections.join("\n\n")];
+  } else {
+    const top = candidateTop.slice(0, 3);
+    lines = top.map((r, i) => {
+      const paediatricNote = r.benefits_for_children ? " 👶 ODDZIAŁ DZIECIĘCY" : "";
+      return formatLine(r, i) + paediatricNote;
+    });
+  }
 
   // Freshness signal: how old is the queue-length snapshot vs. today?
   // Snapshots > 60 days old warrant a phone-check warning.
@@ -265,6 +303,9 @@ function summarizeResults(out: SearchAppointmentsOutput): string {
 
   const total = out.count;
   const shown = out.results.length + out.results_no_geo.length;
+  const skippedNote = out.count_skipped_invalid
+    ? ` (NFZ zwrócił ${out.count_raw_nfz}, pominięto ${out.count_skipped_invalid} bez harmonogramu)`
+    : "";
 
   // Surface elicitation context — let the LLM tell the user how the filter
   // was applied (e.g. "Wybrałeś województwo X" or "Filtruję do dorosłych").
@@ -281,22 +322,25 @@ function summarizeResults(out: SearchAppointmentsOutput): string {
   })();
 
   // Disambiguation hint (when host doesn't support elicit, e.g. AWS Bedrock).
+  // Per Claude MCP Apps docs (mcp_apps_docs_claude.md §"App vs. chat
+  // interactions"): filtering of already-displayed data should be handled by
+  // the widget, NOT narrated in chat. Hint LLM accordingly.
   const disambigNote = (() => {
     const d = out.disambiguation_needed;
     if (!d) return "";
     const hints: string[] = [];
-    if (d.province) hints.push("zapytaj użytkownika o województwo (01-16)");
+    if (d.province) hints.push("ask user for voivodeship (01-16)");
     if (d.scope) {
       hints.push(
-        "wyniki zawierają oddziały dla dorosłych ORAZ dziecięce — zapytaj użytkownika o zakres wiekowy " +
-          "(potem ponów z benefit_for_children=false dla dorosłych, =true dla dzieci)",
+        "results contain adult AND paediatric — widget already shows filter buttons; " +
+          "do NOT re-ask in chat unless widget is unavailable",
       );
     }
-    return hints.length > 0 ? ` ⚠ Disambiguation: ${hints.join("; ")}.` : "";
+    return hints.length > 0 ? ` ⚠ ${hints.join("; ")}.` : "";
   })();
 
   const footer =
-    `\nZnaleziono ${total} kolejek, pokazano ${shown}.${localityNote} ` +
+    `\nZnaleziono ${total} kolejek, pokazano ${shown}${skippedNote}.${localityNote} ` +
     `Pełne wyniki + mapa w widgecie. ` +
     `Dane wygenerowane: ${out.data_freshness.slice(0, 10)}.${staleness}${elicitedNote}${disambigNote}`;
 
@@ -423,9 +467,11 @@ export function createServer(env: Env): McpServer {
 
         // Defensive: drop records with null dates (NFZ data gap — production
         // crash 2026-05-17 on TORUŃ filter). Normalizer returns null for these.
+        const rawCount = response.data.length;
         let normalized = response.data
           .map((q) => normalizeQueueAttributes(q.id, q.attributes))
           .filter((r): r is NormalizedQueueResult => r !== null);
+        const skippedInvalid = rawCount - normalized.length;
 
         // -- Elicit paediatric/adult scope on mixed results --------------------
         if (params.benefit_for_children === undefined && normalized.length > 0) {
@@ -461,9 +507,13 @@ export function createServer(env: Env): McpServer {
           .sort()
           .reverse()[0] ?? null;
 
-        const totalCount = response.meta.count ?? normalized.length;
+        // `count` now reflects what the widget actually renders (after the
+        // null-dates filter). `count_raw_nfz` preserves NFZ's view for
+        // diagnostics; LLM should use `count` for user-facing numbers.
+        const rawNfzCount = response.meta.count ?? rawCount;
+        const renderableCount = Math.max(0, rawNfzCount - skippedInvalid);
         const limit = response.meta.limit ?? (params.limit ?? 10);
-        const totalPages = limit > 0 ? Math.ceil(totalCount / limit) : 1;
+        const totalPages = limit > 0 ? Math.ceil(renderableCount / limit) : 1;
 
         // -- Did You Mean: 0 results with a benefit → fetch suggestions -------
         // Run lookup_benefit with the original term + extracted keywords so the
@@ -477,7 +527,9 @@ export function createServer(env: Env): McpServer {
         const output: SearchAppointmentsOutput = {
           kind: "search",
           query: { ...params, case: params.case ?? 1 },
-          count: totalCount,
+          count: renderableCount,
+          count_raw_nfz: rawNfzCount,
+          count_skipped_invalid: skippedInvalid > 0 ? skippedInvalid : undefined,
           page: response.meta.page ?? 1,
           total_pages: totalPages,
           results,
