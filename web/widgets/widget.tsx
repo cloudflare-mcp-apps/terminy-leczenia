@@ -99,37 +99,38 @@ function shortProvider(name: string, max = 50): string {
 interface FilterState {
   showOnlyAccessible: boolean;
   showOnlyChildren: boolean;
-  caseFilter: 0 | 1 | 2; // 0 = both
 }
 
 interface FilterBarProps {
   filters: FilterState;
   onChange: (next: FilterState) => void;
+  caseFilter: 0 | 1 | 2; // 0 = both (server-side via search_appointments)
+  onCaseChange: (next: 0 | 1 | 2) => void;
   totalCount: number;
   shownCount: number;
 }
 
-function FilterBar({ filters, onChange, totalCount, shownCount }: FilterBarProps) {
+function FilterBar({ filters, onChange, caseFilter, onCaseChange, totalCount, shownCount }: FilterBarProps) {
   return (
     <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b bg-background text-sm">
       <button
         type="button"
-        className={`h-8 px-2 rounded border ${filters.caseFilter === 0 ? "bg-secondary" : ""}`}
-        onClick={() => onChange({ ...filters, caseFilter: 0 })}
+        className={`h-8 px-2 rounded border cursor-pointer ${caseFilter === 0 ? "bg-secondary" : ""}`}
+        onClick={() => onCaseChange(0)}
       >
         Wszystko
       </button>
       <button
         type="button"
-        className={`h-8 px-2 rounded border ${filters.caseFilter === 1 ? "bg-secondary" : ""}`}
-        onClick={() => onChange({ ...filters, caseFilter: 1 })}
+        className={`h-8 px-2 rounded border cursor-pointer ${caseFilter === 1 ? "bg-secondary" : ""}`}
+        onClick={() => onCaseChange(1)}
       >
         Stabilny
       </button>
       <button
         type="button"
-        className={`h-8 px-2 rounded border ${filters.caseFilter === 2 ? "bg-secondary" : ""}`}
-        onClick={() => onChange({ ...filters, caseFilter: 2 })}
+        className={`h-8 px-2 rounded border cursor-pointer ${caseFilter === 2 ? "bg-secondary" : ""}`}
+        onClick={() => onCaseChange(2)}
       >
         Pilny
       </button>
@@ -139,7 +140,7 @@ function FilterBar({ filters, onChange, totalCount, shownCount }: FilterBarProps
           checked={filters.showOnlyAccessible}
           onChange={(e) => onChange({ ...filters, showOnlyAccessible: e.target.checked })}
         />
-        <span>♿ Dostępne</span>
+        <span>♿ Bez barier</span>
       </label>
       <label className="flex items-center gap-1 cursor-pointer">
         <input
@@ -268,10 +269,22 @@ interface ResultCardProps {
   onSelect: () => void;
   onShowOtherPlaces: () => void;
   onAskClaude: () => void;
+  onCallPhone: (phone: string) => void;
 }
 
-function ResultCard({ result, isSelected, onSelect, onShowOtherPlaces, onAskClaude }: ResultCardProps) {
+function ResultCard({ result, isSelected, onSelect, onShowOtherPlaces, onAskClaude, onCallPhone }: ResultCardProps) {
   const a = result.accessibility;
+  const [copied, setCopied] = useState(false);
+  const copyPhone = useCallback(async (phone: string) => {
+    const clean = phone.replace(/\s/g, "");
+    try {
+      await navigator.clipboard.writeText(clean);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (e) {
+      log.error("clipboard write failed:", e);
+    }
+  }, []);
   return (
     <div
       className={`p-2 border rounded cursor-pointer text-xs ${
@@ -325,13 +338,30 @@ function ResultCard({ result, isSelected, onSelect, onShowOtherPlaces, onAskClau
           </button>
         )}
         {result.phone && (
-          <a
-            className="h-7 px-2 text-xs rounded border bg-background flex items-center"
-            href={`tel:${result.phone.replace(/\s/g, "")}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            📞 {result.phone}
-          </a>
+          <>
+            <button
+              type="button"
+              className="h-7 px-2 text-xs rounded border bg-background flex items-center cursor-pointer"
+              title="Zadzwoń (otwiera dialer)"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCallPhone(result.phone!);
+              }}
+            >
+              📞 {result.phone}
+            </button>
+            <button
+              type="button"
+              className="h-7 px-2 text-xs rounded border bg-background flex items-center cursor-pointer"
+              title={copied ? "Skopiowano" : "Kopiuj numer"}
+              onClick={(e) => {
+                e.stopPropagation();
+                copyPhone(result.phone!);
+              }}
+            >
+              {copied ? "✓" : "📋"}
+            </button>
+          </>
         )}
         <button
           type="button"
@@ -355,9 +385,10 @@ function ResultCard({ result, isSelected, onSelect, onShowOtherPlaces, onAskClau
 interface OtherPlacesDrawerProps {
   data: ListOtherPlacesOutput;
   onClose: () => void;
+  onCallPhone: (phone: string) => void;
 }
 
-function OtherPlacesDrawer({ data, onClose }: OtherPlacesDrawerProps) {
+function OtherPlacesDrawer({ data, onClose, onCallPhone }: OtherPlacesDrawerProps) {
   return (
     <div className="absolute inset-0 z-20 bg-background/95 flex flex-col">
       <div className="flex items-center justify-between px-3 py-2 border-b">
@@ -389,9 +420,13 @@ function OtherPlacesDrawer({ data, onClose }: OtherPlacesDrawerProps) {
                 </span>
               </div>
               {p.phone && (
-                <a className="text-blue-600 underline" href={`tel:${p.phone.replace(/\s/g, "")}`}>
+                <button
+                  type="button"
+                  className="text-blue-600 underline cursor-pointer"
+                  onClick={() => onCallPhone(p.phone!)}
+                >
                   📞 {p.phone}
-                </a>
+                </button>
               )}
             </div>
           ))
@@ -426,7 +461,6 @@ function Widget() {
   const [filters, setFilters] = useState<FilterState>({
     showOnlyAccessible: false,
     showOnlyChildren: false,
-    caseFilter: 0,
   });
   const [hostContext, setHostContext] = useState<McpUiHostContext | undefined>();
   const [app, setApp] = useState<App | null>(null);
@@ -564,6 +598,19 @@ function Widget() {
     [app],
   );
 
+  const handleCallPhone = useCallback(
+    async (phone: string) => {
+      if (!app) return;
+      const url = `tel:${phone.replace(/\s/g, "")}`;
+      try {
+        await app.openLink({ url });
+      } catch (e) {
+        log.error("openLink(tel:) failed:", e);
+      }
+    },
+    [app],
+  );
+
   const handleAskClaude = useCallback(
     async (r: NormalizedQueueResult) => {
       if (!app) return;
@@ -659,11 +706,27 @@ function Widget() {
   // Clicking re-runs search_appointments with the chosen filter.
   const scopeNeeded = data.disambiguation_needed?.scope;
 
+  const currentCase: 0 | 1 | 2 = data.query.case ?? 0;
+  const handleCaseChange = async (next: 0 | 1 | 2) => {
+    if (!app) return;
+    if (next === currentCase) return;
+    const nextArgs: Record<string, unknown> = { ...data.query };
+    if (next === 0) delete nextArgs.case;
+    else nextArgs.case = next;
+    try {
+      await app.callServerTool({ name: "search_appointments", arguments: nextArgs });
+    } catch (e) {
+      log.error("search_appointments (case) failed:", e);
+    }
+  };
+
   return (
     <div className="h-[500px] w-full flex flex-col overflow-hidden bg-background text-foreground" style={safeAreaStyle}>
       <FilterBar
         filters={filters}
         onChange={setFilters}
+        caseFilter={currentCase}
+        onCaseChange={handleCaseChange}
         totalCount={data.count}
         shownCount={totalFiltered}
       />
@@ -732,6 +795,7 @@ function Widget() {
                   onSelect={() => setSelectedQueueId(r.queue_id)}
                   onShowOtherPlaces={() => handleShowOtherPlaces(r.queue_id)}
                   onAskClaude={() => handleAskClaude(r)}
+                  onCallPhone={handleCallPhone}
                 />
               ))
             )}
@@ -748,13 +812,14 @@ function Widget() {
                     onSelect={() => setSelectedQueueId(r.queue_id)}
                     onShowOtherPlaces={() => handleShowOtherPlaces(r.queue_id)}
                     onAskClaude={() => handleAskClaude(r)}
+                    onCallPhone={handleCallPhone}
                   />
                 ))}
               </div>
             )}
           </div>
         </div>
-        {drawer && <OtherPlacesDrawer data={drawer} onClose={() => setDrawer(null)} />}
+        {drawer && <OtherPlacesDrawer data={drawer} onClose={() => setDrawer(null)} onCallPhone={handleCallPhone} />}
       </div>
       <div className="px-3 py-1 border-t text-[10px] text-muted-foreground flex justify-between">
         <span>
