@@ -39,7 +39,6 @@ git push origin main
 ### 1. Verification
 - [ ] Custom domain accessible
 - [ ] OAuth flow works (test in AI Playground)
-- [ ] API key authentication works (test with curl)
 - [ ] Widget loads correctly
 
 ### 2. Post-Migration Cleanup (if migrating from old OAuth)

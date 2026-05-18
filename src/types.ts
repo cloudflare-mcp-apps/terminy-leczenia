@@ -2,7 +2,7 @@
  * Cloudflare Workers Environment Bindings
  *
  * This interface defines all the bindings available to your MCP server.
- * Authentication is handled via JWT verification (AuthKit JWKS) and API keys (D1).
+ * Authentication is handled via JWT verification (WorkOS AuthKit JWKS), with user lookup in shared D1.
  *
  * TODO: Replace {{SERVER_ID}} placeholders and add your custom bindings
  */
@@ -24,9 +24,9 @@ export interface Env {
   /**
    * D1 Database - Shared mcp-oauth database
    *
-   * Contains: users, api_keys tables
+   * Contains: users table.
    * Same database as panel.wtyczki.ai for centralized auth.
-   * Used for API key validation and user lookup by workos_user_id.
+   * Used for user lookup by workos_user_id after JWT verification.
    */
   DB: D1Database;
 

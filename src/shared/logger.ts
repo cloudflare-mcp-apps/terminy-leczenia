@@ -76,7 +76,7 @@ export type ToolEvent =
 export type AuthEvent =
   | {
       event: 'auth_attempt';
-      method: 'oauth' | 'api_key';
+      method: 'oauth';
       user_email?: string;
       user_id?: string;
       success: boolean;
@@ -87,12 +87,6 @@ export type AuthEvent =
       session_id: string;
       valid: boolean;
       reason?: string;
-    }
-  | {
-      event: 'api_key_validated';
-      user_id: string;
-      key_prefix: string;
-      success: boolean;
     }
   | {
       event: 'user_lookup';
@@ -171,7 +165,7 @@ export type SecurityEvent =
 export type SystemEvent =
   | {
       event: 'server_started';
-      auth_mode: 'oauth' | 'api_key' | 'dual';
+      auth_mode: 'oauth';
     }
   | {
       event: 'lru_cache_eviction';

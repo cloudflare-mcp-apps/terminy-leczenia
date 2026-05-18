@@ -59,22 +59,11 @@ For OAuth-capable MCP clients.
 3. Callback completes OAuth flow
 4. Tools become available
 
-### API Key
-For non-OAuth clients and custom integrations.
-
-```bash
-# Example with curl
-curl -X POST https://{{SERVER_ID}}.wtyczki.ai/mcp \
-  -H "Authorization: Bearer wtyk_your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
-```
-
 ## Error Handling
 
 | Error Code | Description | Resolution |
 |------------|-------------|------------|
-| 401 | Invalid or expired API key | Regenerate key at panel.wtyczki.ai |
+| 401 | Missing or invalid JWT | Re-authenticate at panel.wtyczki.ai |
 | 403 | User not registered | Register at panel.wtyczki.ai |
 | 500 | Internal server error | Check Cloudflare Workers logs |
 

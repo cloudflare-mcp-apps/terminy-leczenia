@@ -2,7 +2,7 @@
  * Tool Registry
  *
  * Central export point for all {{SERVER_NAME}} MCP tools.
- * Provides clean imports for server.ts and api-key-handler.ts
+ * Provides clean imports for server.ts
  *
  * @module tools
  */

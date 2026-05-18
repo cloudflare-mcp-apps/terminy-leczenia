@@ -30,7 +30,7 @@
 
 ## Auth
 
-JWT via WorkOS AuthKit JWKS + API key (`wtyk_` prefix) D1 hash lookup. Cloudflare canonical `createMcpHandler` pattern (`src/server.ts` factory) for new servers; legacy thin resource server pattern (`src/mcp-handler.ts` LRU cache) for older projects. Zero per-server secrets — auth centralized at `panel.wtyczki.ai`. See `new_oauth/system.md`.
+JWT via WorkOS AuthKit JWKS (Cloudflare canonical `createMcpHandler` pattern — fresh `McpServer` per request from `src/server.ts` factory). Zero per-server secrets — auth centralized at `panel.wtyczki.ai`. See `new_oauth/system.md`.
 
 ## Deploy
 

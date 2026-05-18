@@ -43,18 +43,11 @@ MCP servers verify JWTs using:
 - **Issuer validation**: `https://{AUTHKIT_DOMAIN}`
 - **User lookup**: JWT `sub` claim -> D1 `users.workos_user_id`
 
-### 4. API Key Fallback
-
-For non-OAuth clients (AnythingLLM, Cursor, custom scripts):
-- API keys prefixed with `wtyk_`
-- Validated against D1 `api_keys` table
-- Managed via panel.wtyczki.ai
-
 ## Shared Resources
 
 | Resource | Binding | Purpose |
 |----------|---------|---------|
-| D1 Database | `DB` (mcp-oauth) | User and API key lookup |
+| D1 Database | `DB` (mcp-oauth) | User lookup by `workos_user_id` |
 | AuthKit Domain | `AUTHKIT_DOMAIN` (var) | JWT verification and well-known endpoints |
 
 ## Key Differences from Old Architecture
@@ -71,6 +64,5 @@ For non-OAuth clients (AnythingLLM, Cursor, custom scripts):
 
 - [ ] Well-known endpoints return correct AuthKit URLs
 - [ ] JWT authentication works (test in AI Playground)
-- [ ] API key authentication works (test with curl)
 - [ ] Invalid JWT returns 401 with WWW-Authenticate header
 - [ ] User not in D1 returns 401
