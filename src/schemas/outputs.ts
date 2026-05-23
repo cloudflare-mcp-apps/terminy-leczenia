@@ -250,6 +250,8 @@ export const LOOKUP_OUTPUT_SCHEMA = {
     .meta({ description: "Which NFZ dictionary was queried" }),
   results: z.array(z.string()).optional()
     .meta({ description: "Up to 25 official Polish names ranked by NFZ" }),
+  did_you_mean: z.array(z.string()).optional()
+    .meta({ description: "When results is empty: NFZ-verified close matches to retry with" }),
 
   is_info: z.boolean().optional(),
   code: z.number().int().optional(),

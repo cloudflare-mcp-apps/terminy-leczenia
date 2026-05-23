@@ -19,6 +19,7 @@ import type { Env } from "./types";
 import { SERVER_CONFIG, PROVINCE_NAMES, PROVINCE_CODES } from "./shared/constants";
 import { UI_RESOURCES } from "./resources/ui-resources";
 import { loadHtml } from "./helpers/assets";
+import { BENEFIT_SYNONYMS } from "./helpers/benefit-synonyms";
 import { SERVER_INSTRUCTIONS } from "./server-instructions";
 import { logger } from "./shared/logger";
 import { TOOL_METADATA, getToolDescription } from "./tools/descriptions";
@@ -199,6 +200,47 @@ async function findDidYouMean(nfz: NfzClient, benefit: string): Promise<string[]
       }
     } catch {
       // Skip — NfzApiError or transport error on a fallback query is non-fatal.
+    }
+  }
+  return Array.from(candidates);
+}
+
+/**
+ * "Did You Mean" for lookup_benefit when query returned 0 results.
+ * Strategy:
+ *   (A) Decompose multi-word query into ≥4-char tokens — helps freeform input.
+ *   (B) Match BENEFIT_SYNONYMS keys overlapping the query — patient procedure
+ *       term → NFZ-specialty substring (e.g. "PRZEGRODA" → "OTOLARYNGOLOG").
+ * Probes are sent to NFZ /benefits to surface real dictionary names (not raw
+ * specialty substrings), so the LLM can pass them verbatim to search_appointments.
+ */
+async function lookupBenefitDidYouMean(nfz: NfzClient, query: string): Promise<string[]> {
+  const upper = query.toUpperCase();
+  const probes = new Set<string>();
+
+  // (A) Keyword split — useful when LLM passes multi-word freeform via lookup.
+  for (const word of upper.split(/[\s,/-]+/).filter((w) => w.length >= 4).slice(0, 3)) {
+    if (word !== upper) probes.add(word);
+  }
+
+  // (B) Synonym map — overlap min 5 chars, either direction.
+  for (const [key, hints] of Object.entries(BENEFIT_SYNONYMS)) {
+    if (key.length < 5) continue;
+    const overlaps = upper.includes(key) || key.includes(upper.slice(0, Math.max(5, upper.length - 1)));
+    if (overlaps) for (const h of hints) probes.add(h);
+  }
+
+  const candidates = new Set<string>();
+  for (const p of probes) {
+    if (candidates.size >= 6) break;
+    try {
+      const res = await nfz.listBenefits({ name: p, limit: 4 });
+      for (const r of res.data) {
+        candidates.add(r);
+        if (candidates.size >= 6) break;
+      }
+    } catch {
+      // Non-fatal: probe miss does not invalidate other probes.
     }
   }
   return Array.from(candidates);
@@ -700,11 +742,25 @@ export function createServer(env: Env): McpServer {
       try {
         const response = await nfz.listBenefits({ name: params.query, limit: params.limit ?? 10 });
         const names = response.data;
+
+        if (names.length === 0) {
+          const didYouMean = await lookupBenefitDidYouMean(nfz, params.query);
+          const text = didYouMean.length > 0
+            ? `Brak świadczeń pasujących do "${params.query}". 💡 Czy chodziło o:\n` +
+              didYouMean.map((s, i) => `${i + 1}. ${s}`).join("\n") +
+              `\nPonów lookup_benefit lub przekaż jedną z powyższych nazw bezpośrednio do search_appointments.`
+            : `Brak świadczeń pasujących do "${params.query}". Spróbuj krótszej frazy lub innego słowa.`;
+          return asTextResult(text, {
+            kind: "lookup",
+            entity: "benefit",
+            results: [],
+            did_you_mean: didYouMean,
+          });
+        }
+
         const text =
-          names.length === 0
-            ? `Brak świadczeń pasujących do "${params.query}". Spróbuj krótszej frazy lub innego słowa.`
-            : `Znaleziono ${response.meta.count ?? names.length} świadczeń (pokazano ${names.length}):\n` +
-              names.map((n, i) => `${i + 1}. ${n}`).join("\n");
+          `Znaleziono ${response.meta.count ?? names.length} świadczeń (pokazano ${names.length}):\n` +
+          names.map((n, i) => `${i + 1}. ${n}`).join("\n");
         return asTextResult(text, { kind: "lookup", entity: "benefit", results: names });
       } catch (err) {
         if (err instanceof NfzApiError) return nfzErrorResult(err, "lookup_benefit");

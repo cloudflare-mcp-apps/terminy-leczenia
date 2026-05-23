@@ -85,7 +85,8 @@ export const TOOL_METADATA = {
         "CRITICAL: try the patient's LITERAL term first ('ZAĆMA', 'SOCZEWKI', 'PRZEGRODA', 'KOLANO') — NFZ exposes procedure-level benefits with realistic queue data. Only widen to department/specialty names ('OKULISTYCZNY', 'OTOLARYNGOLOG') if the literal term returns 0 results. " +
         "NEVER substitute a department for a procedure when both exist — 'ODDZIAŁ OKULISTYCZNY' (oddział, kilka osób w kolejce) is a different queue than 'ZABIEGI W ZAKRESIE SOCZEWKI (ZAĆMA)' (procedura, kolejka miesiące) even though both treat eyes. " +
         "Mapping (literal → fallback if 0 results): 'zaćma' → ['ZAĆMA' or 'SOCZEWKI', else 'OKULISTYCZNY']; 'septoplastyka' / 'przegroda nosa' → ['PRZEGRODA' or 'SEPTOPLASTYKA', else 'OTOLARYNGOLOG']; 'kolano' (rezonans) → ['REZONANS']; 'kardiolog' → ['KARDIOLOG']. " +
-        "Avoid over-specific phrases ('PORADNIA KARDIOLOGICZNA' = 0 results — shorter substring wins).",
+        "Avoid over-specific phrases ('PORADNIA KARDIOLOGICZNA' = 0 results — shorter substring wins). " +
+        "If results=0, the response carries `did_you_mean[]` with NFZ-verified close matches — pick one and pass it verbatim to search_appointments, do NOT guess a new specialty term.",
     },
     examples: [
       {
