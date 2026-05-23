@@ -77,19 +77,24 @@ export const TOOL_METADATA = {
       part1_purpose:
         "Returns the official Polish healthcare benefit names matching a substring query — required precondition for search_appointments because the queue API only matches dictionary entries, not freeform terms.",
       part2_returns:
-        "Returns up to 25 official benefit names (uppercase Polish) as a plain text list, one per line, ranked by NFZ. Examples: query='KARDIOLOG' returns 12 entries including 'ODDZIAŁ KARDIOLOGICZNY', 'REHABILITACJA KARDIOLOGICZNA W WARUNKACH STACJONARNYCH'; query='REZONANS' returns the single entry 'REZONANS MAGNETYCZNY'.",
+        "Returns up to 25 official benefit names (uppercase Polish) as a plain text list, one per line, ranked by NFZ. The dictionary mixes DEPARTMENT/CLINIC entries ('ODDZIAŁ KARDIOLOGICZNY', 'PORADNIA OKULISTYCZNA') with PROCEDURE entries ('ZABIEGI W ZAKRESIE SOCZEWKI (ZAĆMA)', 'REZONANS MAGNETYCZNY') — they are DIFFERENT NFZ queues with different waits.",
       part3_useCase:
-        "Use whenever you do NOT already have an exact dictionary name. Pick the best match from the result list and pass it verbatim to search_appointments.",
+        "Use whenever you do NOT already have an exact dictionary name. Pick the most specific match from the result list and pass it verbatim to search_appointments.",
       part4_constraints:
         "Query must be at least 3 characters. " +
-        "CRITICAL: the NFZ dictionary is organised by DEPARTMENT/CLINIC names ('ODDZIAŁ X', 'PORADNIA Y'), NOT procedure names. Translate patient terms to the specialty BEFORE querying. " +
-        "Mapping examples: 'operacja przegrody nosa' / 'septoplastyka' → query 'OTOLARYNGOLOGIA' (yields 'ODDZIAŁ OTORYNOLARYNGOLOGICZNY'); 'usunięcie zaćmy' → query 'OKULISTYCZNY'; 'rezonans kolana' → query 'REZONANS'; 'kardiolog' → query 'KARDIOLOG'. " +
-        "Avoid lay procedure terms ('przegroda nosa' = 0 results) and over-specific phrases ('PORADNIA KARDIOLOGICZNA' = 0 results — use shorter substrings).",
+        "CRITICAL: try the patient's LITERAL term first ('ZAĆMA', 'SOCZEWKI', 'PRZEGRODA', 'KOLANO') — NFZ exposes procedure-level benefits with realistic queue data. Only widen to department/specialty names ('OKULISTYCZNY', 'OTOLARYNGOLOG') if the literal term returns 0 results. " +
+        "NEVER substitute a department for a procedure when both exist — 'ODDZIAŁ OKULISTYCZNY' (oddział, kilka osób w kolejce) is a different queue than 'ZABIEGI W ZAKRESIE SOCZEWKI (ZAĆMA)' (procedura, kolejka miesiące) even though both treat eyes. " +
+        "Mapping (literal → fallback if 0 results): 'zaćma' → ['ZAĆMA' or 'SOCZEWKI', else 'OKULISTYCZNY']; 'septoplastyka' / 'przegroda nosa' → ['PRZEGRODA' or 'SEPTOPLASTYKA', else 'OTOLARYNGOLOG']; 'kolano' (rezonans) → ['REZONANS']; 'kardiolog' → ['KARDIOLOG']. " +
+        "Avoid over-specific phrases ('PORADNIA KARDIOLOGICZNA' = 0 results — shorter substring wins).",
     },
     examples: [
       {
-        scenario: "Find cardiology-related benefits",
+        scenario: "Find cardiology-related benefits (specialty fallback)",
         description: "lookup_benefit(query='KARDIOLOG') → 12 official names",
+      },
+      {
+        scenario: "Procedure-level benefit (literal term wins)",
+        description: "lookup_benefit(query='ZAĆMA') → 'ZABIEGI W ZAKRESIE SOCZEWKI (ZAĆMA)' — pass THIS to search_appointments, not 'ODDZIAŁ OKULISTYCZNY'",
       },
     ],
   },

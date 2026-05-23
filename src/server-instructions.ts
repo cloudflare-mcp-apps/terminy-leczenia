@@ -25,6 +25,7 @@ Terminy Leczenia NFZ — Polish public-healthcare appointment-queue search ("Inf
 4. **list_other_places(queue_id)** when a result has has_other_places=true — surfaces faster alternatives at the same provider.
 
 ## Disambiguation Rules
+- **Procedure beats department.** When the patient names a specific procedure or condition, pass that literal Polish term as the benefit. Do NOT substitute the parent medical specialty or hospital-ward name. NFZ stores procedure-level entries and department-level entries as SEPARATE queues with very different waits — substituting the broader department returns a misleading first-available date for a different service. Fall back to the specialty only if the literal term returns 0 results and the did_you_mean array contains no procedure-shaped candidate.
 - **case=1 stable** is the default. Use **case=2 urgent** ONLY when the patient explicitly says "pilny" / "urgent".
 - **benefit_for_children=false** by default for adults. Paediatric departments are SEPARATE NFZ entries (e.g. "ODDZIAŁ OTOLARYNGOLOGICZNY DZIECIĘCY") and will otherwise mix into results.
 - **benefit_for_children=true MUST be set explicitly** when the patient mentions a child ("dla dziecka", "dziecięcy", "pediatryczny", "dla mojego syna/córki", "pediatra"). Do NOT rely on the benefit name to imply paediatric scope — even if the freeform term contains "dziecięcy", the NFZ dictionary match may not, and the filter is what guarantees the correct department class.
