@@ -1,0 +1,176 @@
+<!-- ========== ZAKŁADKA 1: OPIS ========== -->
+<h3>Najszybsze wolne terminy w NFZ — pytasz AI, dostajesz mapę</h3>
+
+<p><strong>Terminy Leczenia NFZ</strong> to serwer MCP, który podłącza Twoje AI (Claude, ChatGPT) do oficjalnego, publicznego informatora terminów Narodowego Funduszu Zdrowia. Mówisz po polsku co Ci dolega albo do jakiego specjalisty się wybierasz, a AI w kilka sekund pokazuje, gdzie i kiedy jest najszybszy wolny termin.</p>
+
+<p>Nie musisz wchodzić na rządową stronę, klikać przez filtry ani zgadywać, jak NFZ nazywa „operację zaćmy”. Pytasz tak, jak rozmawiasz z lekarzem — wtyczka sama wybiera oficjalną nazwę świadczenia, znajduje placówki, sortuje po dacie i pokazuje wszystko na interaktywnej mapie z numerami telefonów do rejestracji.</p>
+
+<div class="tip-box">
+  <p><strong>💡 Wskazówka:</strong> ta wtyczka tylko pokazuje terminy — nie umawia wizyty. Po znalezieniu pasującej placówki dzwonisz pod numer z listy. Telefon każdej placówki masz od razu w wyniku.</p>
+</div>
+
+<h4>Co możesz robić z tym serwerem</h4>
+
+<p>Serwer udostępnia <strong>5 narzędzi</strong>:</p>
+
+<ul>
+  <li><strong>Wyszukaj wolne terminy</strong> — wpisujesz świadczenie (np. „kardiolog”, „rezonans kolana”) i opcjonalnie województwo, miasto czy pilność. Dostajesz do 25 placówek na mapie z najszybszą datą, średnim czasem oczekiwania, oznaczeniami dostępności (WC, podjazd dla wózków, parking, winda) i telefonem.</li>
+  <li><strong>Pokaż inne lokalizacje tego samego świadczeniodawcy</strong> — jeden szpital często działa w kilku miastach. Czas oczekiwania bywa różny nawet o <em>kilka miesięcy</em> w obrębie tej samej placówki — to narzędzie pokazuje wszystkie warianty z osobnymi datami.</li>
+  <li><strong>Słownik świadczeń NFZ</strong> — jeśli nie wiesz, jak NFZ oficjalnie nazywa to, czego potrzebujesz, AI sprawdzi za Ciebie. Np. „operacja przegrody nosa” → „ODDZIAŁ OTORYNOLARYNGOLOGICZNY”.</li>
+  <li><strong>Słownik miejscowości NFZ</strong> — przydaje się, gdy mieszkasz w dużym mieście podzielonym na dzielnice (Warszawa Mokotów vs Warszawa Bemowo to w NFZ osobne wpisy).</li>
+  <li><strong>Słownik świadczeniodawców</strong> — wyszukiwanie po nazwie szpitala lub przychodni w wybranym województwie.</li>
+</ul>
+
+<h4>Interaktywny widget</h4>
+
+<p>Po wyszukaniu terminów w czacie pojawia się <strong>panel</strong> z dwiema sekcjami:</p>
+
+<ul>
+  <li><strong>Mapa</strong> placówek z pinezkami w miejscach, gdzie są wolne terminy.</li>
+  <li><strong>Lista wyników</strong> z najszybszą datą, liczbą osób w kolejce, średnim czasem oczekiwania, telefonem i ikonami dostępności (toaleta, podjazd, parking, winda).</li>
+</ul>
+
+<p>Gdy wynik miesza oddziały dorosłych i dziecięce, widget od razu wyświetla przyciski filtra („Dorośli” / „Dzieci” / „Wszystko”) — bez konieczności pytania AI ponownie.</p>
+
+<hr>
+
+<!-- ========== ZAKŁADKA 2: DZIAŁANIE ========== -->
+<h3>Jak to działa krok po kroku</h3>
+
+<h4>Przepływ informacji</h4>
+
+<ol>
+  <li><strong>Ty</strong> piszesz w czacie, np. „znajdź mi najszybszy termin do kardiologa w Krakowie”.</li>
+  <li><strong>AI</strong> (Claude lub ChatGPT) rozumie pytanie i wywołuje narzędzie wyszukiwania w Twoim imieniu — w razie potrzeby najpierw sprawdza oficjalną nazwę świadczenia w słowniku NFZ.</li>
+  <li><strong>Serwer MCP</strong> pyta publiczne API NFZ o terminy w danym województwie i mieście, czyści dane, sortuje po dacie i odsyła w jednym wyniku.</li>
+  <li><strong>Wynik</strong> wraca do czatu jako krótkie podsumowanie („Najszybszy termin: 12.06.2026 w Szpitalu Uniwersyteckim w Krakowie”) plus mapa i lista w widgecie.</li>
+</ol>
+
+<p>Cały kontakt z NFZ idzie przez serwer — Twoje AI nigdy nie wysyła nic bezpośrednio na ich infrastrukturę.</p>
+
+<h4>Inteligentne dopytywanie</h4>
+
+<ul>
+  <li><strong>Sugestie „czy chodziło Ci o…”</strong> — jeśli wpiszesz potoczną nazwę („operacja zaćmy”), a NFZ używa innej („ZABIEGI OKULISTYCZNE”), serwer od razu w odpowiedzi proponuje pasujące oficjalne nazwy. Nie musisz zgadywać.</li>
+  <li><strong>Dopytanie o województwo</strong> — gdy AI nie zna ani świadczenia, ani regionu, serwer sam wyświetla formularz z listą 16 województw do wyboru.</li>
+  <li><strong>Dopytanie o wiek pacjenta</strong> — jeśli w wynikach są zarówno oddziały dla dorosłych, jak i dzieci, AI pyta, którą grupę chcesz zobaczyć. W widgecie ten sam wybór masz jednym kliknięciem.</li>
+  <li><strong>Ostrzeżenie o świeżości danych</strong> — jeśli ostatnia aktualizacja danej placówki jest starsza niż 60 dni, w wyniku zobaczysz znak ⚠ i sugestię telefonicznej weryfikacji.</li>
+</ul>
+
+<h4>Praktyczne scenariusze</h4>
+
+<h5>1. Szybkie wizyty u specjalisty</h5>
+<p>Piszesz: <em>„Najszybsza wizyta u kardiologa w Mazowieckiem”</em>. AI wybiera oficjalną nazwę „ODDZIAŁ KARDIOLOGICZNY”, pobiera kolejki w województwie i pokazuje top 3 placówki z datami i telefonami. Dzwonisz pod numer z listy i zapisujesz się.</p>
+
+<h5>2. Diagnostyka obrazowa</h5>
+<p>Piszesz: <em>„Gdzie najszybciej zrobię rezonans magnetyczny kolana w Krakowie?”</em>. AI używa słownika do trafienia w „REZONANS MAGNETYCZNY”, ogranicza wyszukiwanie do Krakowa i Małopolski, a w widgecie widzisz mapę placówek z datami. Jeśli ten sam ośrodek robi rezonans w kilku miejscach, klikasz „pokaż inne lokalizacje” i wybierasz tę z najkrótszą kolejką.</p>
+
+<h5>3. Pilne sprawy onkologiczne lub dziecięce</h5>
+<p>Piszesz: <em>„Pilna konsultacja onkologiczna dla dziecka”</em>. AI ustawia tryb pilny (case 2), zawęża wyniki do oddziałów dziecięcych i pokazuje placówki, gdzie zgodnie z NFZ przyjmują dzieci z priorytetem. Wynik zawiera telefon — od razu możesz dzwonić.</p>
+
+<div class="warning-box">
+  <p><strong>⚠️ Uwaga:</strong> serwer pokazuje terminy <em>raportowane przez NFZ</em>. Realny termin warto potwierdzić telefonicznie — placówka może mieć dziury w grafiku albo świeższe dane niż ostatni snapshot NFZ.</p>
+</div>
+
+<div class="info-box">
+  <p><strong>ℹ️ Info:</strong> wtyczka nie obsługuje sanatoriów (leczenie uzdrowiskowe — NFZ przekierowuje do <code>skierowania.nfz.gov.pl</code>) i nie tłumaczy objawów na świadczenia (np. „boli mnie głowa” → „neurologia”). Działa, gdy znasz specjalność lub badanie.</p>
+</div>
+
+<hr>
+
+<!-- ========== ZAKŁADKA 3: FAQ ========== -->
+<h3>Najczęściej zadawane pytania</h3>
+
+<div class="faq-item">
+  <h4 class="faq-question">Skąd biorą się te dane? Czy są wiarygodne?</h4>
+  <div class="faq-answer">
+    <p>Z oficjalnego, publicznego API NFZ („Informator o Terminach Leczenia”). Te same dane widzisz na rządowej stronie <code>terminyleczenia.nfz.gov.pl</code>, tylko prościej i bez klikania przez 5 filtrów. Każdy wynik ma datę ostatniej aktualizacji — jeśli jest starsza niż 60 dni, wtyczka oznaczy to ostrzeżeniem.</p>
+  </div>
+</div>
+
+<div class="faq-item">
+  <h4 class="faq-question">Czy mogę przez tę wtyczkę umówić wizytę?</h4>
+  <div class="faq-answer">
+    <p>Nie. Wtyczka pokazuje gdzie i kiedy jest wolny termin oraz numer telefonu do placówki. Samą rejestrację musisz wykonać telefonicznie lub na stronie placówki. To celowy wybór — NFZ nie udostępnia API do rezerwacji wizyt.</p>
+  </div>
+</div>
+
+<div class="faq-item">
+  <h4 class="faq-question">Czy widzę terminy NFZ, czy prywatne?</h4>
+  <div class="faq-answer">
+    <p>Tylko NFZ — czyli wizyty refundowane w ramach publicznej służby zdrowia. Wtyczka nie obejmuje prywatnych przychodni i sieci komercyjnych.</p>
+  </div>
+</div>
+
+<div class="faq-item">
+  <h4 class="faq-question">Czy potrzebuję czegoś poza kontem wtyczki.ai?</h4>
+  <div class="faq-answer">
+    <p>Nie. Logujesz się raz tym samym kontem, którego używasz w panelu wtyczki.ai. Brak osobnego klucza API, brak konta w NFZ. Dane NFZ są publiczne — wtyczka nie wysyła żadnych Twoich informacji medycznych do NFZ.</p>
+  </div>
+</div>
+
+<div class="faq-item">
+  <h4 class="faq-question">Czy ta wtyczka zna moje dane medyczne?</h4>
+  <div class="faq-answer">
+    <p>Nie. Pracuje wyłącznie na publicznych danych — kolejkach, świadczeniach, miejscowościach i nazwach placówek. Nie ma dostępu do Twojego PESELa, historii leczenia, e-recept ani Internetowego Konta Pacjenta. Twoja rozmowa z AI również nie trafia do NFZ.</p>
+  </div>
+</div>
+
+<div class="faq-item">
+  <h4 class="faq-question">Wpisałem nazwę i nic nie znalazł — co teraz?</h4>
+  <div class="faq-answer">
+    <p>NFZ ma własny słownik nazw (np. „ODDZIAŁ OTORYNOLARYNGOLOGICZNY” zamiast „operacja przegrody nosa”). Gdy wpiszesz potoczną nazwę, serwer w odpowiedzi pokazuje listę „czy chodziło o…” z najbliższymi pasującymi wpisami. Wybierasz jedno i powtarzasz pytanie.</p>
+  </div>
+</div>
+
+<div class="faq-item">
+  <h4 class="faq-question">Czy obsługuje sanatoria?</h4>
+  <div class="faq-answer">
+    <p>Nie. NFZ udostępnia sanatoria poprzez osobny system <code>skierowania.nfz.gov.pl</code> — wtyczka zwraca komunikat z odesłaniem, gdy zapytasz o leczenie uzdrowiskowe.</p>
+  </div>
+</div>
+
+<div class="faq-item">
+  <h4 class="faq-question">W jakim AI to działa?</h4>
+  <div class="faq-answer">
+    <p>W każdym kliencie obsługującym standard MCP — najpopularniejsze to <strong>Claude</strong> (desktop i web) oraz <strong>ChatGPT</strong> z włączoną obsługą MCP. Interaktywna mapa pokazuje się w klientach, które obsługują widgety MCP Apps (np. Claude).</p>
+  </div>
+</div>
+
+<hr>
+
+<!-- ========== DODATEK: INSTALACJA ========== -->
+<h3>Jak to zainstalować</h3>
+
+<h4>Adres serwera</h4>
+<pre><code>https://terminy-leczenia.wtyczki.ai/mcp</code></pre>
+
+<p>Transport: <strong>Streamable HTTP</strong> (nowoczesny standard MCP). Wklejasz adres w konfiguracji swojego klienta jako nowy serwer MCP.</p>
+
+<h4>Pierwsze połączenie</h4>
+
+<p>Przy pierwszym połączeniu klient (Claude / ChatGPT) otworzy okno logowania <strong>WorkOS AuthKit</strong>. Zatwierdzasz dostęp tym samym kontem, którym masz dostęp do panelu wtyczki.ai — nie ma osobnego klucza API ani hasła do tej wtyczki.</p>
+
+<h4>Wymagania</h4>
+
+<ul>
+  <li><strong>Konto wtyczki.ai</strong> — używane do logowania OAuth.</li>
+  <li><strong>Klient MCP</strong> z obsługą OAuth (np. Claude Desktop / Claude w przeglądarce, ChatGPT z MCP).</li>
+  <li><strong>Brak kluczy NFZ</strong> — wtyczka korzysta z publicznego API, nic nie musisz konfigurować.</li>
+</ul>
+
+<div class="tip-box">
+  <p><strong>💡 Wskazówka:</strong> mapa działa na Leaflet + OpenStreetMap. Jeśli mapa się nie ładuje (np. blokada sieci firmowej), wyniki nadal masz w czystym formacie listy — wszystkie dane są w wyniku tekstowym i strukturalnym.</p>
+</div>
+
+<!-- ========== SEO META ========== -->
+<!--
+SEO TITLE (50–60 znaków, ze spacjami):
+Terminy leczenia NFZ — wolne wizyty i kolejki | wtyczki.ai
+
+SEO DESCRIPTION (140–160 znaków, ze spacjami):
+Sprawdź najszybsze wolne terminy w NFZ — pytasz AI po polsku, dostajesz mapę placówek, daty i telefony. Dane z publicznego API NFZ. Wypróbuj w Claude.
+
+SŁOWA KLUCZOWE (pomocnicze, do social/OG):
+terminy NFZ, wolne wizyty, kolejka do specjalisty, terminy leczenia, MCP zdrowie
+-->

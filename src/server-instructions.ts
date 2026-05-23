@@ -27,6 +27,7 @@ Terminy Leczenia NFZ — Polish public-healthcare appointment-queue search ("Inf
 ## Disambiguation Rules
 - **case=1 stable** is the default. Use **case=2 urgent** ONLY when the patient explicitly says "pilny" / "urgent".
 - **benefit_for_children=false** by default for adults. Paediatric departments are SEPARATE NFZ entries (e.g. "ODDZIAŁ OTOLARYNGOLOGICZNY DZIECIĘCY") and will otherwise mix into results.
+- **benefit_for_children=true MUST be set explicitly** when the patient mentions a child ("dla dziecka", "dziecięcy", "pediatryczny", "dla mojego syna/córki", "pediatra"). Do NOT rely on the benefit name to imply paediatric scope — even if the freeform term contains "dziecięcy", the NFZ dictionary match may not, and the filter is what guarantees the correct department class.
 - **locality** parameter is OPTIONAL — patient asking about a whole voivodeship should not get locality filtered; only set it when the patient names a specific city.
 
 ## Response Format

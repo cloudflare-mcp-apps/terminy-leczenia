@@ -29,9 +29,10 @@ const PROVINCE_DESC =
 export const SearchAppointmentsInput = {
   benefit: z.string().min(3).max(250).optional().meta({
     description:
-      "Substring (case-insensitive) of an official NFZ benefit name (e.g. 'REZONANS MAGNETYCZNY', 'KARDIOLOG'). " +
-      "Required if `province` is not given. ALWAYS call `lookup_benefit` first if you do not already have an exact NFZ name — " +
-      "the queue API only matches dictionary entries, not freeform terms.",
+      "Freeform Polish benefit term (e.g. 'rezonans kolana', 'kardiolog', 'operacja przegrody nosa') OR an exact NFZ dictionary name. " +
+      "Required if `province` is not given. If the term does not match the NFZ dictionary, the server returns 0 results plus " +
+      "`did_you_mean[]` with close matches in the same response — re-call `search_appointments` with one of those names. " +
+      "Do NOT pre-call `lookup_benefit` unless the patient explicitly wants to browse the dictionary.",
   }),
   province: z.enum(PROVINCE_ENUM).optional().meta({
     description: PROVINCE_DESC + " Required if `benefit` is not given.",

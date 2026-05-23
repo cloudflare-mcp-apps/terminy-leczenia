@@ -42,6 +42,12 @@ import type {
   ErrorOutput,
   NormalizedQueueResult,
 } from "./schemas/outputs";
+import {
+  SEARCH_APPOINTMENTS_OUTPUT_SCHEMA,
+  LIST_OTHER_PLACES_OUTPUT_SCHEMA,
+  LOOKUP_OUTPUT_SCHEMA,
+} from "./schemas/outputs";
+import { znajdzTerminPrompt, sprawdzObjawPrompt } from "./optional/prompts";
 
 import {
   NfzClient,
@@ -259,8 +265,14 @@ function summarizeResults(out: SearchAppointmentsOutput): string {
     const when =
       days <= 0 ? "dziś" : days === 1 ? "za 1 dzień" : `za ${days} dni`;
     const provider = r.provider.length > 60 ? r.provider.slice(0, 57) + "..." : r.provider;
+    // Surface the full queue_id (UUID) in text only when has_other_places=true,
+    // so chat-side LLMs can call list_other_places without scraping
+    // structuredContent. Kept off other rows to avoid token noise.
+    const otherPlacesNote = r.has_other_places
+      ? ` [⊕ inne miejsca dostępne — list_other_places(queue_id="${r.queue_id}")]`
+      : "";
     return `${i + 1}. ${r.wait_date} (${when}) — ${provider}, ${r.place}, ${r.locality}` +
-      (r.has_other_places ? " [⊕ inne miejsca dostępne]" : "");
+      otherPlacesNote;
   };
 
   // Dual-top when adult+paediatric mix and no scope filter chosen yet — split
@@ -355,7 +367,11 @@ export function createServer(env: Env): McpServer {
   const server = new McpServer(
     { name: SERVER_CONFIG.NAME, version: SERVER_CONFIG.VERSION },
     {
-      capabilities: { tools: {}, resources: { listChanged: true } },
+      capabilities: {
+        tools: {},
+        resources: { listChanged: true },
+        prompts: { listChanged: true },
+      },
       instructions: SERVER_INSTRUCTIONS,
     },
   );
@@ -400,6 +416,7 @@ export function createServer(env: Env): McpServer {
       title: TOOL_METADATA.search_appointments.title,
       description: getToolDescription("search_appointments"),
       inputSchema: SearchAppointmentsInput,
+      outputSchema: SEARCH_APPOINTMENTS_OUTPUT_SCHEMA,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -582,6 +599,7 @@ export function createServer(env: Env): McpServer {
       title: TOOL_METADATA.list_other_places.title,
       description: getToolDescription("list_other_places"),
       inputSchema: ListOtherPlacesInput,
+      outputSchema: LIST_OTHER_PLACES_OUTPUT_SCHEMA,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -669,6 +687,7 @@ export function createServer(env: Env): McpServer {
       title: TOOL_METADATA.lookup_benefit.title,
       description: getToolDescription("lookup_benefit"),
       inputSchema: LookupBenefitInput,
+      outputSchema: LOOKUP_OUTPUT_SCHEMA,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -707,6 +726,7 @@ export function createServer(env: Env): McpServer {
       title: TOOL_METADATA.lookup_locality.title,
       description: getToolDescription("lookup_locality"),
       inputSchema: LookupLocalityInput,
+      outputSchema: LOOKUP_OUTPUT_SCHEMA,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -751,6 +771,7 @@ export function createServer(env: Env): McpServer {
       title: TOOL_METADATA.lookup_provider.title,
       description: getToolDescription("lookup_provider"),
       inputSchema: LookupProviderInput,
+      outputSchema: LOOKUP_OUTPUT_SCHEMA,
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -785,6 +806,14 @@ export function createServer(env: Env): McpServer {
       }
     },
   );
+
+  // ========================================================================
+  // Prompts (slash-commands) — registered individually because each
+  // argsSchema shape is different and a for-loop would unify the TS generic
+  // to the first entry's shape (same gotcha as ads-roi).
+  // ========================================================================
+  server.registerPrompt(znajdzTerminPrompt.name, znajdzTerminPrompt.config, znajdzTerminPrompt.handler);
+  server.registerPrompt(sprawdzObjawPrompt.name, sprawdzObjawPrompt.config, sprawdzObjawPrompt.handler);
 
   return server;
 }

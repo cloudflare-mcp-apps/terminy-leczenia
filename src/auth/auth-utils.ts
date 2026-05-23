@@ -4,9 +4,8 @@
  * User lookup functions for D1 database.
  */
 
-/**
- * Query user from database by WorkOS user ID (JWT sub claim)
- */
+import { logger } from '../shared/logger';
+
 export async function getUserByWorkosId(
   db: D1Database,
   workosUserId: string
@@ -16,9 +15,23 @@ export async function getUserByWorkosId(
       .prepare('SELECT user_id, email, is_deleted FROM users WHERE workos_user_id = ? AND is_deleted = 0')
       .bind(workosUserId)
       .first<{ user_id: string; email: string; is_deleted: number }>();
-    return result || null;
+    if (!result) {
+      logger.warn({
+        event: 'auth_attempt',
+        method: 'oauth',
+        success: false,
+        reason: 'user_not_found_or_deleted',
+      });
+      return null;
+    }
+    return result;
   } catch (error) {
-    console.error('[Auth] Error querying user by workos_user_id:', error);
+    logger.error({
+      event: 'auth_attempt',
+      method: 'oauth',
+      success: false,
+      reason: `d1_error:${error instanceof Error ? error.message : String(error)}`,
+    });
     return null;
   }
 }
