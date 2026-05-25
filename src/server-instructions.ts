@@ -56,6 +56,9 @@ Per Claude MCP Apps docs, **filtering of already-displayed data is widget territ
 - All NFZ data is public and anonymous — no PHI processed
 - Widget state is ephemeral (not persisted between sessions)
 - Long-range agents: results are self-contained; no progress tracking or checkpoint tools needed
+
+
+Respond in Polish by default; if the user writes in another language, reply in that language.
 `.trim();
 
 export default SERVER_INSTRUCTIONS;
