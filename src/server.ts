@@ -411,8 +411,8 @@ export function createServer(env: Env): McpServer {
     {
       capabilities: {
         tools: {},
-        resources: { listChanged: true },
-        prompts: { listChanged: true },
+        resources: {},
+        prompts: {},
       },
       instructions: SERVER_INSTRUCTIONS,
     },
