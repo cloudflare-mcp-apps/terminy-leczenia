@@ -1,3 +1,10 @@
+---
+generator: /audit-design
+generated: 2026-05-20
+source_commit: dbfdd4d
+depends_on: [snapshot.md]
+---
+
 # Server Audit Report: terminy-leczenia
 
 **Generated:** 2026-05-20 07:12:13 UTC

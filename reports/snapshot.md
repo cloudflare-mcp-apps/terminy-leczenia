@@ -1,3 +1,10 @@
+---
+generator: /snapshot-server
+generated: 2026-05-20
+source_commit: dbfdd4d
+depends_on: []
+---
+
 # Terminy Leczenia NFZ MCP App - Infrastructure Snapshot
 
 **Generated**: 2026-05-20
