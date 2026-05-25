@@ -8,7 +8,7 @@ kind: manifest
 
 **AI workflow: read this first.** Single entry-point to every generated report for this server, with freshness vs current source. Auto-generated — do not hand-edit. Contract: `production_docs/REPORTS_CONVENTION.md`.
 
-Source fingerprint: `fb6ef76` · ⚠️ working tree **DIRTY** (uncommitted src/web changes → derivatives STALE) · package version: `1.0.0` · refreshed: 2026-05-25
+Source fingerprint: `3d73f86` · package version: `1.0.0` · refreshed: 2026-05-25
 
 ## Canonical reports (`reports/`)
 
@@ -22,8 +22,8 @@ Source fingerprint: `fb6ef76` · ⚠️ working tree **DIRTY** (uncommitted src/
 
 ## Runtime captures (dated)
 
-- eval: 1 capture(s) — snapshots/eval-2026-05-24
-- probe: 1 capture(s) — snapshots/mcp-audit-2026-05-23
+- eval: 1 capture(s) — reports/eval/2026-05-24
+- probe: 1 capture(s) — reports/probe/2026-05-23
 
 ## DAG (regeneration order)
 

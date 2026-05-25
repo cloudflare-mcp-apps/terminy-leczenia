@@ -1,0 +1,31 @@
+[
+  {
+    "name": "procedure — zaćma must pick procedure benefit, not department",
+    "accuracy": 0.6666666666666666,
+    "avgTokens": 10427.333333333334,
+    "failure": "=== Failed Iteration 1/1 ===\n--- Prompt 1 ---\n[\n  {\n    \"role\": \"user\",\n    \"content\": \"Szukam terminu do zabiegu zaćmy w Włocławku.\"\n  },\n  {\n    \"role\": \"assistant\",\n    \"content\": [\n      {\n        \"type\": \"tool-call\",\n        \"toolCallId\": \"call_ksqiM8xWsVJBK9vYSBegMnFD\",\n        \"toolName\": \"lookup_locality\",\n        \"input\": {\n          \"query\": \"Włocławek\",\n          \"province\": \"02\",\n          \"limit\": 10\n        },\n        \"providerOptions\": {\n          \"openai\": {\n            \"itemId\": \"fc_09b7cc3a08b304d2006a12371661b881909f64fbe191db741d\"\n          }\n        }\n      },\n      {\n        \"type\": \"tool-call\",\n        \"toolCallId\": \"call_cUQanVontCvaUy0t2yCRqXMa\",\n        \"toolName\": \"lookup_benefit\",\n        \"input\": {\n          \"query\": \"zaćma\",\n          \"limit\": 10\n        },\n        \"providerOptions\": {\n          \"openai\": {\n            \"itemId\": \"fc_09b7cc3a08b304d2006a12371661d08190bbd75538d03fe00e\"\n          }\n        }\n      }\n    ]\n  },\n  {\n    \"role\": \"tool\",\n    \"content\": [\n      {\n        \"type\": \"tool-result\",\n        \"toolCallId\": \"call_ksqiM8xWsVJBK9vYSBegMnFD\",\n        \"toolName\": \"lookup_locality\",\n        \"output\": {\n          \"type\": \"json\",\n          \"value\": {\n            \"content\": [\n              {\n                \"type\": \"text\",\n                \"text\": \"NFZ returned HTTP 429.\"\n              }\n            ],\n            \"structuredContent\": {\n              \"kind\": \"error\",\n              \"is_info\": false,\n              \"code\": 0,\n              \"message\": \"NFZ returned HTTP 429.\"\n            },\n            \"isError\": true\n          }\n        },\n        \"providerOptions\": {\n          \"openai\": {\n            \"itemId\": \"fc_09b7cc3a08b304d2006a12371661b881909f64fbe191db741d\"\n          }\n        }\n      },\n      {\n        \"type\": \"tool-result\",\n        \"toolCallId\": \"call_cUQanVontCvaUy0t2yCRqXMa\",\n        \"toolName\": \"lookup_benefit\",\n        \"output\": {\n          \"type\": \"json\",\n          \"value\": {\n            \"content\": [\n              {\n                \"type\": \"text\",\n                \"text\": \"Znaleziono 1 świadczeń (pokazano 1):\\n1. ZABIEGI W ZAKRESIE SOCZEWKI (ZAĆMA)\"\n              }\n            ],\n            \"structuredContent\": {\n              \"kind\": \"lookup\",\n              \"entity\": \"benefit\",\n              \"results\": [\n                \"ZABIEGI W ZAKRESIE SOCZEWKI (ZAĆMA)\"\n              ]\n            },\n            \"isError\": false\n          }\n        },\n        \"providerOptions\": {\n          \"openai\": {\n            \"itemId\": \"fc_09b7cc3a08b304d2006a12371661d08190bbd75538d03fe00e\"\n          }\n        }\n      }\n    ]\n  },\n  {\n    \"role\": \"assistant\",\n    \"content\": [\n      {\n        \"type\": \"tool-call\",\n        \"toolCallId\": \"call_PI2oMevTrFtfKuzRpGavRSuh\",\n        \"toolName\": \"search_appointments\",\n        \"input\": {\n          \"benefit\": \"ZABIEGI W ZAKRESIE SOCZEWKI (ZAĆMA)\",\n          \"province\": \"02\",\n          \"locality\": \"WŁOCŁAWEK\",\n          \"case\": 1,\n          \"limit\": 10\n        },\n        \"providerOptions\": {\n          \"openai\": {\n            \"itemId\": \"fc_09b7cc3a08b304d2006a1237178f708190aa2ae518ed5a2d6a\"\n          }\n        }\n      }\n    ]\n  },\n  {\n    \"role\": \"tool\",\n    \"content\": [\n      {\n        \"type\": \"tool-result\",\n        \"toolCallId\": \"call_PI2oMevTrFtfKuzRpGavRSuh\",\n        \"toolName\": \"search_appointments\",\n        \"output\": {\n          \"type\": \"json\",\n          \"value\": {\n            \"content\": [\n              {\n                \"type\": \"text\",\n                \"text\": \"1. 2026-12-31 (za 222 dni) — WOJEWÓDZKI SZPITAL SPECJALISTYCZNY WE WŁOCŁAWKU, ODDZIAŁ OKULISTYKI, WŁOCŁAWEK\\nZnaleziono 1 kolejek, pokazano 1 (NFZ zwrócił 3, pominięto 2 bez harmonogramu). Pełne wyniki + mapa w widgecie. Dane wygenerowane: 2026-05-24. Snapshot kolejek: 2026-05-21.\"\n              }\n            ]\n          }\n        },\n        \"providerOptions\": {\n          \"openai\": {\n            \"itemId\": \"fc_09b7cc3a08b304d2006a1237178f708190aa2ae518ed5a2d6a\"\n          }\n        }\n      }\n    ]\n  },\n  {\n    \"role\": \"assistant\",\n    \"content\": [\n      {\n        \"type\": \"text\",\n        \"text\": \"Najbliższy termin na zabieg zaćmy we Włocławku znalazłem na:\\n\\n**WOJEWÓDZKI SZPITAL SPECJALISTYCZNY WE WŁOCŁAWKU, ODDZIAŁ OKULISTYKI**  \\n**Termin:** 31.12.2026  \\n**Oczekiwanie:** ok. 222 dni\\n\\nNFZ pokazał 3 kolejki dla tego świadczenia, ale 2 zostały pominięte, bo nie miały harmonogramu.\\n\\nJeśli chcesz, mogę też sprawdzić:\\n- **inne miejsca w woj. kujawsko-pomorskim**,\\n- albo **inne lokalizacje tego samego szpitala**, jeśli są dostępne.\",\n        \"providerOptions\": {\n          \"openai\": {\n            \"itemId\": \"msg_09b7cc3a08b304d2006a12371a635481909078107535a1bfbf\",\n            \"phase\": \"final_answer\"\n          }\n        }\n      }\n    ]\n  }\n]",
+    "toolErrors": [
+      "NFZ returned HTTP 429."
+    ]
+  },
+  {
+    "name": "procedure-fallback — septoplastyka tries literal terms first",
+    "accuracy": 1,
+    "avgTokens": 16037
+  },
+  {
+    "name": "procedure — endoproteza biodra must pick procedure benefit",
+    "accuracy": 1,
+    "avgTokens": 9522.666666666666
+  },
+  {
+    "name": "procedure-negative — kardiolog consult stays at department",
+    "accuracy": 1,
+    "avgTokens": 11410
+  },
+  {
+    "name": "procedure — rezonans kolana must use REZONANS benefit",
+    "accuracy": 1,
+    "avgTokens": 11678.666666666666
+  }
+]

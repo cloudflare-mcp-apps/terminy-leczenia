@@ -1,0 +1,1382 @@
+{
+  "target": {
+    "kind": "http",
+    "label": "https://terminy-leczenia.wtyczki.ai/mcp",
+    "url": "https://terminy-leczenia.wtyczki.ai/mcp",
+    "commandArgs": [],
+    "envKeys": [],
+    "headerNames": [],
+    "timeoutMs": 30000,
+    "hasAccessToken": true,
+    "hasRefreshToken": false,
+    "hasClientSecret": false
+  },
+  "generatedAt": "2026-05-23T23:24:01.503Z",
+  "status": "ready",
+  "probe": {
+    "url": "https://terminy-leczenia.wtyczki.ai/mcp",
+    "protocolVersion": "2025-11-25",
+    "status": "ready",
+    "transport": {
+      "selected": "streamable-http",
+      "attempts": [
+        {
+          "name": "streamable_initialize",
+          "request": {
+            "method": "POST",
+            "url": "https://terminy-leczenia.wtyczki.ai/mcp",
+            "headers": {
+              "Content-Type": "application/json",
+              "Accept": "application/json, text/event-stream",
+              "Authorization": "[REDACTED]"
+            },
+            "body": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {
+                "protocolVersion": "2025-11-25",
+                "capabilities": {},
+                "clientInfo": {
+                  "name": "mcpjam-probe",
+                  "version": "1.0.0"
+                }
+              }
+            }
+          },
+          "durationMs": 197,
+          "response": {
+            "status": 200,
+            "statusText": "OK",
+            "headers": {
+              "access-control-allow-origin": "*",
+              "access-control-expose-headers": "mcp-session-id",
+              "alt-svc": "h3=\":443\"; ma=86400",
+              "cache-control": "no-cache",
+              "cf-ray": "a007cfcf6d4ab588-WAW",
+              "connection": "keep-alive",
+              "content-type": "text/event-stream",
+              "date": "Sat, 23 May 2026 23:24:01 GMT",
+              "nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+              "report-to": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=yET%2F2a%2Fa995b5ITLyASVnxIPzv0YiRG9K7y%2F2G80up1%2FO0IQ27a3F7%2BROUgWuZ650zSEET3J0xjTI8DtKU9Gem7PJ%2BvtKFAjNcbCO4zKoQEOZinzArZ6rFJWLtiFRBZSSOAf54f3VoesbjrQpNk%3D\"}]}",
+              "server": "cloudflare",
+              "transfer-encoding": "chunked"
+            },
+            "contentType": "text/event-stream"
+          }
+        }
+      ]
+    },
+    "initialize": {
+      "contentType": "text/event-stream"
+    },
+    "oauth": {
+      "required": false,
+      "optional": false,
+      "registrationStrategies": []
+    }
+  },
+  "connection": {
+    "status": "connected",
+    "detail": "Connected and initialized successfully."
+  },
+  "initInfo": {
+    "protocolVersion": "2025-11-25",
+    "transport": "streamable-http",
+    "serverCapabilities": {
+      "prompts": {
+        "listChanged": true
+      },
+      "resources": {
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      }
+    },
+    "serverVersion": {
+      "name": "terminy-leczenia",
+      "version": "1.0.0"
+    },
+    "instructions": "Terminy Leczenia NFZ — Polish public-healthcare appointment-queue search (\"Informator o Terminach Leczenia\" open data API).\n\n## Key Capabilities\n- First-available appointment date for any NFZ benefit nationwide\n- Interactive map + list widget with wait times, accessibility flags, and provider phone\n- Alternative locations of multi-site providers (wait times can differ by months)\n\n## Usage Patterns\n1. **search_appointments is the entry point**. You may pass a freeform Polish benefit term ('operacja przegrody nosa', 'rezonans kolana') — if it does not match NFZ's official dictionary, the server returns 0 results PLUS a did_you_mean list of close matches in the same response. Re-call search_appointments with one of those names. Skip lookup_benefit unless the patient explicitly wants to browse the dictionary.\n2. **Missing province?** Don't pre-fill. The server will elicit voivodeship via a form if both benefit and province are missing — let the user pick.\n3. **Mixed paediatric/adult results?** Don't pre-fill benefit_for_children. If results contain both, the server will elicit scope via a form. The result then includes elicited.scope so you know which filter was applied.\n4. **list_other_places(queue_id)** when a result has has_other_places=true — surfaces faster alternatives at the same provider.\n\n## Disambiguation Rules\n- **Procedure beats department.** When the patient names a specific procedure or condition, pass that literal Polish term as the benefit. Do NOT substitute the parent medical specialty or hospital-ward name. NFZ stores procedure-level entries and department-level entries as SEPARATE queues with very different waits — substituting the broader department returns a misleading first-available date for a different service. Fall back to the specialty only if the literal term returns 0 results and the did_you_mean array contains no procedure-shaped candidate.\n- **case=1 stable** is the default. Use **case=2 urgent** ONLY when the patient explicitly says \"pilny\" / \"urgent\".\n- **benefit_for_children=false** by default for adults. Paediatric departments are SEPARATE NFZ entries (e.g. \"ODDZIAŁ OTOLARYNGOLOGICZNY DZIECIĘCY\") and will otherwise mix into results.\n- **benefit_for_children=true MUST be set explicitly** when the patient mentions a child (\"dla dziecka\", \"dziecięcy\", \"pediatryczny\", \"dla mojego syna/córki\", \"pediatra\"). Do NOT rely on the benefit name to imply paediatric scope — even if the freeform term contains \"dziecięcy\", the NFZ dictionary match may not, and the filter is what guarantees the correct department class.\n- **locality** parameter is OPTIONAL — patient asking about a whole voivodeship should not get locality filtered; only set it when the patient names a specific city.\n\n## Response Format\nsearch_appointments and list_other_places return structuredContent with: results[] (with geo), results_no_geo[] (lat/lng=null edge cases), count (renderable, after filtering invalid records), count_raw_nfz, count_skipped_invalid, data_freshness, newest_snapshot, did_you_mean[] (close-match suggestions when count=0), elicited{province, scope} (filters applied via interactive form), disambiguation_needed{province, scope} (widget should render buttons).\n\n## Interaction Boundaries (Claude MCP Apps philosophy)\nPer Claude MCP Apps docs, **filtering of already-displayed data is widget territory**, not chat. When the response carries disambiguation_needed:\n- The widget renders inline filter buttons (👤 / 👶) automatically.\n- DO NOT also ask the user the same question in chat — that creates redundant double-questioning.\n- DO briefly summarise the dual-top sections that already arrived in your text response (the server pre-segregates \"earliest for adults\" vs \"earliest for children\").\n- Only narrate disambiguation when text-only summary is the ONLY output channel (rare — most hosts render the widget).\n\n## Performance & Limits\n- Cold call < 2 s; warm KV cache < 500 ms\n- Cache TTL: 24 h for dictionaries, 1 h for queue results\n- Max 25 results per call (NFZ hard cap)\n- Wait dates further than 12 months out are common in NFZ data and accurate, not stale\n\n## Out of Scope\n- **Sanatorium** (leczenie uzdrowiskowe) — NFZ redirects to skierowania.nfz.gov.pl (error code 1200038); we surface the redirect\n- **Symptom → benefit translation** (\"boli mnie serce\" → list of suitable benefits) — handled by the companion nfz-benefits server\n- **Booking** — patient must call the provider directly (phone is in the result)\n\n## Important Notes\n- All NFZ data is public and anonymous — no PHI processed\n- Widget state is ephemeral (not persisted between sessions)\n- Long-range agents: results are self-contained; no progress tracking or checkpoint tools needed",
+    "clientCapabilities": {
+      "extensions": {
+        "io.modelcontextprotocol/ui": {
+          "mimeTypes": [
+            "text/html;profile=mcp-app"
+          ]
+        }
+      }
+    }
+  },
+  "capabilities": {
+    "prompts": {
+      "listChanged": true
+    },
+    "resources": {
+      "listChanged": true
+    },
+    "tools": {
+      "listChanged": true
+    }
+  },
+  "tools": [
+    {
+      "name": "search_appointments",
+      "title": "Search NFZ Appointments",
+      "description": "Searches the public Polish healthcare appointment-queue system for the first available treatment date for a given benefit, optionally filtered by voivodeship, locality, urgency, and paediatric scope. Returns up to 25 ranked queue entries with provider, place, address, phone, first-available date, wait-time statistics (people in queue, average wait), accessibility flags (toilet, ramp, car-park, elevator), geographic coordinates, and a flag indicating whether the same provider offers the benefit at other locations — rendered as an interactive map + list widget. Use whenever the patient asks where or when they can get a specific healthcare benefit (examples: 'najszybszy rezonans kolana w Mazowieckiem', 'kardiolog dla dziecka w Krakowie pilnie'). INTERACTIVE BEHAVIOR (let the server elicit): (a) If both benefit and province are missing, the server elicits voivodeship via a form — DO NOT pre-fill defaults. (b) If the freeform benefit does not match the NFZ dictionary, the response carries did_you_mean[] with close matches — re-call with one of those names. (c) If results mix paediatric and adult departments AND benefit_for_children was not set, the server elicits scope via a form — DO NOT pre-fill benefit_for_children. URGENCY: default to case=1 (stable); use case=2 only when the patient explicitly says 'pilny' / 'urgent'. LOCALITY: only set when the patient names a specific city. Max 25 results per call. The `elicited` field in the response tells you which filters were applied via form.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "benefit": {
+            "description": "Freeform Polish benefit term (e.g. 'zaćma', 'rezonans kolana', 'kardiolog', 'operacja przegrody nosa') OR an exact NFZ dictionary name. Required if `province` is not given. If the term does not match the NFZ dictionary, the server returns 0 results plus `did_you_mean[]` with close matches in the same response — re-call `search_appointments` with one of those names. Do NOT pre-call `lookup_benefit` unless the patient explicitly wants to browse the dictionary. CRITICAL: prefer the patient's literal procedure term ('ZAĆMA', 'PRZEGRODA', 'SOCZEWKI') over a department label ('ODDZIAŁ OKULISTYCZNY'). NFZ stores procedures and departments as SEPARATE queues with very different waits — querying the department when a procedure-specific benefit exists will return a misleading 'first-available' date for a different service.",
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 250
+          },
+          "province": {
+            "description": "Voivodeship code (01-16): 01=dolnośląskie, 02=kujawsko-pomorskie, 03=lubelskie, 04=lubuskie, 05=łódzkie, 06=małopolskie, 07=mazowieckie, 08=opolskie, 09=podkarpackie, 10=podlaskie, 11=pomorskie, 12=śląskie, 13=świętokrzyskie, 14=warmińsko-mazurskie, 15=wielkopolskie, 16=zachodniopomorskie. Required if `benefit` is not given.",
+            "type": "string",
+            "enum": [
+              "10",
+              "11",
+              "12",
+              "13",
+              "14",
+              "15",
+              "16",
+              "01",
+              "02",
+              "03",
+              "04",
+              "05",
+              "06",
+              "07",
+              "08",
+              "09"
+            ]
+          },
+          "case": {
+            "description": "Medical urgency: 1 = przypadek stabilny (stable, default), 2 = przypadek pilny (urgent — only when patient explicitly says 'pilny' / 'urgent').",
+            "anyOf": [
+              {
+                "type": "number",
+                "const": 1
+              },
+              {
+                "type": "number",
+                "const": 2
+              }
+            ]
+          },
+          "locality": {
+            "description": "Exact NFZ locality name (uppercase). City districts are separate entries (e.g. 'WARSZAWA' vs 'WARSZAWA MOKOTÓW'). Use `lookup_locality` to disambiguate.",
+            "type": "string",
+            "maxLength": 250
+          },
+          "benefit_for_children": {
+            "description": "If true, restrict to places that offer the benefit for children.",
+            "type": "boolean"
+          },
+          "limit": {
+            "description": "Max results (default 10, NFZ hard cap 25).",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 25
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "search"
+              },
+              {
+                "type": "string",
+                "const": "error"
+              }
+            ],
+            "description": "'search' on success; 'error' on NFZ-validation or info-code response"
+          },
+          "query": {
+            "description": "Echo of the input parameters as the server interpreted them",
+            "type": "object",
+            "properties": {
+              "benefit": {
+                "type": "string"
+              },
+              "province": {
+                "type": "string",
+                "enum": [
+                  "10",
+                  "11",
+                  "12",
+                  "13",
+                  "14",
+                  "15",
+                  "16",
+                  "01",
+                  "02",
+                  "03",
+                  "04",
+                  "05",
+                  "06",
+                  "07",
+                  "08",
+                  "09"
+                ]
+              },
+              "case": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "const": 1
+                  },
+                  {
+                    "type": "number",
+                    "const": 2
+                  }
+                ]
+              },
+              "locality": {
+                "type": "string"
+              },
+              "benefit_for_children": {
+                "type": "boolean"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "additionalProperties": false
+          },
+          "count": {
+            "description": "Renderable results count after dropping null-date NFZ records",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "count_raw_nfz": {
+            "description": "Raw NFZ-reported total before defensive filtering",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "count_skipped_invalid": {
+            "description": "How many NFZ records were dropped (missing wait_date)",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "page": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "total_pages": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "results": {
+            "description": "Records with geo coordinates — renderable on the Leaflet map",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "queue_id": {
+                  "type": "string"
+                },
+                "benefit": {
+                  "type": "string"
+                },
+                "provider": {
+                  "type": "string"
+                },
+                "place": {
+                  "type": "string"
+                },
+                "locality": {
+                  "type": "string"
+                },
+                "address": {
+                  "type": "string"
+                },
+                "phone": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "latitude": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "longitude": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "wait_date": {
+                  "type": "string"
+                },
+                "wait_days_from_today": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "snapshot_date": {
+                  "type": "string"
+                },
+                "awaiting": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "average_period_days": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "accessibility": {
+                  "type": "object",
+                  "properties": {
+                    "toilet": {
+                      "type": "boolean"
+                    },
+                    "ramp": {
+                      "type": "boolean"
+                    },
+                    "carPark": {
+                      "type": "boolean"
+                    },
+                    "elevator": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "toilet",
+                    "ramp",
+                    "carPark",
+                    "elevator"
+                  ],
+                  "additionalProperties": false
+                },
+                "benefits_for_children": {
+                  "type": "boolean"
+                },
+                "age_range": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "has_other_places": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "queue_id",
+                "benefit",
+                "provider",
+                "place",
+                "locality",
+                "address",
+                "phone",
+                "latitude",
+                "longitude",
+                "wait_date",
+                "wait_days_from_today",
+                "snapshot_date",
+                "awaiting",
+                "average_period_days",
+                "accessibility",
+                "benefits_for_children",
+                "age_range",
+                "has_other_places"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "results_no_geo": {
+            "description": "Records without lat/lng — rendered in the no-location panel",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "queue_id": {
+                  "type": "string"
+                },
+                "benefit": {
+                  "type": "string"
+                },
+                "provider": {
+                  "type": "string"
+                },
+                "place": {
+                  "type": "string"
+                },
+                "locality": {
+                  "type": "string"
+                },
+                "address": {
+                  "type": "string"
+                },
+                "phone": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "latitude": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "longitude": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "wait_date": {
+                  "type": "string"
+                },
+                "wait_days_from_today": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "snapshot_date": {
+                  "type": "string"
+                },
+                "awaiting": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "average_period_days": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "accessibility": {
+                  "type": "object",
+                  "properties": {
+                    "toilet": {
+                      "type": "boolean"
+                    },
+                    "ramp": {
+                      "type": "boolean"
+                    },
+                    "carPark": {
+                      "type": "boolean"
+                    },
+                    "elevator": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "toilet",
+                    "ramp",
+                    "carPark",
+                    "elevator"
+                  ],
+                  "additionalProperties": false
+                },
+                "benefits_for_children": {
+                  "type": "boolean"
+                },
+                "age_range": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "has_other_places": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "queue_id",
+                "benefit",
+                "provider",
+                "place",
+                "locality",
+                "address",
+                "phone",
+                "latitude",
+                "longitude",
+                "wait_date",
+                "wait_days_from_today",
+                "snapshot_date",
+                "awaiting",
+                "average_period_days",
+                "accessibility",
+                "benefits_for_children",
+                "age_range",
+                "has_other_places"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "data_freshness": {
+            "description": "NFZ meta.date-modified timestamp",
+            "type": "string"
+          },
+          "newest_snapshot": {
+            "description": "Newest dates.date-situation-as-at across results",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "banner": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "I",
+                      "O"
+                    ]
+                  },
+                  "content": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "content"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "did_you_mean": {
+            "description": "Close-match benefit names returned when count=0 with a freeform benefit term",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "elicited": {
+            "description": "Filters that were applied via interactive elicitation form",
+            "type": "object",
+            "properties": {
+              "province": {
+                "type": "string"
+              },
+              "scope": {
+                "type": "string",
+                "enum": [
+                  "adult",
+                  "child",
+                  "all"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          "disambiguation_needed": {
+            "description": "Widget should render inline buttons; LLM should ask user in chat",
+            "type": "object",
+            "properties": {
+              "province": {
+                "type": "boolean"
+              },
+              "scope": {
+                "type": "object",
+                "properties": {
+                  "has_adult": {
+                    "type": "boolean"
+                  },
+                  "has_paediatric": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "has_adult",
+                  "has_paediatric"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          "is_info": {
+            "description": "True for non-fatal NFZ info codes (e.g. sanatorium redirect)",
+            "type": "boolean"
+          },
+          "code": {
+            "description": "NFZ error code (1200005, 1200038, ...) or 0 for transport errors",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "message": {
+            "description": "User-facing error message (Polish for documented NFZ codes)",
+            "type": "string"
+          },
+          "redirect_url": {
+            "description": "Redirect target for info codes (e.g. skierowania.nfz.gov.pl)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "list_other_places",
+      "title": "List Other Locations of Same Provider",
+      "description": "Lists every other location where the same healthcare provider offers the same benefit, with each location's distinct first-available date. Returns a list of places (address, locality, phone, geo, wait date, statistics, accessibility) — wait times can differ dramatically across locations of one provider (live probe data showed a 67-day spread within one provider). Rendered as an inline drawer in the parent map widget. Use when the patient asks 'are there other locations of this same place' OR after a search_appointments result with has_other_places=true to surface a faster alternative at the same provider. Input is the queue_id (UUID) from a search_appointments result. Only meaningful when the original result had has_other_places=true (NFZ flag many-places='Y').",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "queue_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Queue UUID returned by `search_appointments` for an entry where has_other_places=true (NFZ flag many-places='Y'). Fetches all other locations of the same provider offering the same benefit. Wait times can differ dramatically across locations of one provider."
+          }
+        },
+        "required": [
+          "queue_id"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "other-places"
+              },
+              {
+                "type": "string",
+                "const": "error"
+              }
+            ],
+            "description": "'other-places' on success; 'error' otherwise"
+          },
+          "benefit": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "origin_queue_id": {
+            "description": "queue_id of the parent search_appointments result that opened this drawer",
+            "type": "string"
+          },
+          "places": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "queue_id": {
+                  "type": "string"
+                },
+                "benefit": {
+                  "type": "string"
+                },
+                "provider": {
+                  "type": "string"
+                },
+                "place": {
+                  "type": "string"
+                },
+                "locality": {
+                  "type": "string"
+                },
+                "address": {
+                  "type": "string"
+                },
+                "phone": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "latitude": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "longitude": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "wait_date": {
+                  "type": "string"
+                },
+                "wait_days_from_today": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "snapshot_date": {
+                  "type": "string"
+                },
+                "awaiting": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "average_period_days": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "accessibility": {
+                  "type": "object",
+                  "properties": {
+                    "toilet": {
+                      "type": "boolean"
+                    },
+                    "ramp": {
+                      "type": "boolean"
+                    },
+                    "carPark": {
+                      "type": "boolean"
+                    },
+                    "elevator": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "toilet",
+                    "ramp",
+                    "carPark",
+                    "elevator"
+                  ],
+                  "additionalProperties": false
+                },
+                "benefits_for_children": {
+                  "type": "boolean"
+                },
+                "age_range": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "has_other_places": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "queue_id",
+                "benefit",
+                "provider",
+                "place",
+                "locality",
+                "address",
+                "phone",
+                "latitude",
+                "longitude",
+                "wait_date",
+                "wait_days_from_today",
+                "snapshot_date",
+                "awaiting",
+                "average_period_days",
+                "accessibility",
+                "benefits_for_children",
+                "age_range",
+                "has_other_places"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "data_freshness": {
+            "type": "string"
+          },
+          "is_info": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "message": {
+            "type": "string"
+          },
+          "redirect_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "lookup_benefit",
+      "title": "Lookup NFZ Benefit Name",
+      "description": "Returns the official Polish healthcare benefit names matching a substring query — required precondition for search_appointments because the queue API only matches dictionary entries, not freeform terms. Returns up to 25 official benefit names (uppercase Polish) as a plain text list, one per line, ranked by NFZ. The dictionary mixes DEPARTMENT/CLINIC entries ('ODDZIAŁ KARDIOLOGICZNY', 'PORADNIA OKULISTYCZNA') with PROCEDURE entries ('ZABIEGI W ZAKRESIE SOCZEWKI (ZAĆMA)', 'REZONANS MAGNETYCZNY') — they are DIFFERENT NFZ queues with different waits. Use whenever you do NOT already have an exact dictionary name. Pick the most specific match from the result list and pass it verbatim to search_appointments. Query must be at least 3 characters. CRITICAL: try the patient's LITERAL term first ('ZAĆMA', 'SOCZEWKI', 'PRZEGRODA', 'KOLANO') — NFZ exposes procedure-level benefits with realistic queue data. Only widen to department/specialty names ('OKULISTYCZNY', 'OTOLARYNGOLOG') if the literal term returns 0 results. NEVER substitute a department for a procedure when both exist — 'ODDZIAŁ OKULISTYCZNY' (oddział, kilka osób w kolejce) is a different queue than 'ZABIEGI W ZAKRESIE SOCZEWKI (ZAĆMA)' (procedura, kolejka miesiące) even though both treat eyes. Mapping (literal → fallback if 0 results): 'zaćma' → ['ZAĆMA' or 'SOCZEWKI', else 'OKULISTYCZNY']; 'septoplastyka' / 'przegroda nosa' → ['PRZEGRODA' or 'SEPTOPLASTYKA', else 'OTOLARYNGOLOG']; 'kolano' (rezonans) → ['REZONANS']; 'kardiolog' → ['KARDIOLOG']. Avoid over-specific phrases ('PORADNIA KARDIOLOGICZNA' = 0 results — shorter substring wins).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 250,
+            "description": "Substring (case-insensitive) of an NFZ benefit name. Examples: 'KARDIOLOG' (returns 12 entries including 'ODDZIAŁ KARDIOLOGICZNY', 'REHABILITACJA KARDIOLOGICZNA W WARUNKACH STACJONARNYCH'), 'REZONANS' (returns 'REZONANS MAGNETYCZNY')."
+          },
+          "limit": {
+            "description": "Max results (default 10, NFZ hard cap 25).",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 25
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "lookup"
+              },
+              {
+                "type": "string",
+                "const": "error"
+              }
+            ]
+          },
+          "entity": {
+            "description": "Which NFZ dictionary was queried",
+            "type": "string",
+            "enum": [
+              "benefit",
+              "locality",
+              "provider"
+            ]
+          },
+          "results": {
+            "description": "Up to 25 official Polish names ranked by NFZ",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "is_info": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "message": {
+            "type": "string"
+          },
+          "redirect_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "lookup_locality",
+      "title": "Lookup NFZ Locality Name",
+      "description": "Returns Polish locality names from the NFZ dictionary matching a substring within a specified voivodeship — needed to disambiguate city vs district before passing to search_appointments. Returns up to 25 locality names (uppercase Polish) as a plain text list. City districts are separate entries — example: query='Warszawa' in voivodeship 07 returns WARSZAWA, WARSZAWA BEMOWO, WARSZAWA BIAŁOŁĘKA, WARSZAWA BIELANY, WARSZAWA MOKOTÓW, ... (19 total). Use when the patient mentions a city to find both the city itself and its districts. Pass the chosen exact name to search_appointments(locality=...). Query must be at least 3 characters. Voivodeship code (01-16) is required.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 250,
+            "description": "Substring of a locality name (Polish diacritics OK; min 3 chars)."
+          },
+          "province": {
+            "type": "string",
+            "enum": [
+              "10",
+              "11",
+              "12",
+              "13",
+              "14",
+              "15",
+              "16",
+              "01",
+              "02",
+              "03",
+              "04",
+              "05",
+              "06",
+              "07",
+              "08",
+              "09"
+            ],
+            "description": "Voivodeship code (01-16): 01=dolnośląskie, 02=kujawsko-pomorskie, 03=lubelskie, 04=lubuskie, 05=łódzkie, 06=małopolskie, 07=mazowieckie, 08=opolskie, 09=podkarpackie, 10=podlaskie, 11=pomorskie, 12=śląskie, 13=świętokrzyskie, 14=warmińsko-mazurskie, 15=wielkopolskie, 16=zachodniopomorskie."
+          },
+          "limit": {
+            "description": "Max results (default 10, NFZ hard cap 25).",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 25
+          }
+        },
+        "required": [
+          "query",
+          "province"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "lookup"
+              },
+              {
+                "type": "string",
+                "const": "error"
+              }
+            ]
+          },
+          "entity": {
+            "description": "Which NFZ dictionary was queried",
+            "type": "string",
+            "enum": [
+              "benefit",
+              "locality",
+              "provider"
+            ]
+          },
+          "results": {
+            "description": "Up to 25 official Polish names ranked by NFZ",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "is_info": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "message": {
+            "type": "string"
+          },
+          "redirect_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "lookup_provider",
+      "title": "Lookup NFZ Healthcare Provider",
+      "description": "Returns Polish healthcare-provider names from the NFZ dictionary matching a substring within a specified voivodeship. Returns up to 25 official provider names (uppercase Polish, often long official forms like '5 WOJSKOWY SZPITAL KLINICZNY Z POLIKLINIKĄ - SAMODZIELNY PUBLICZNY ZAKŁAD OPIEKI ZDROWOTNEJ W KRAKOWIE') as a plain text list. Use when the patient names a specific hospital or clinic ('chcę termin w CMKP', 'w Szpitalu Wolskim') rather than a benefit type. Query must be at least 3 characters. Voivodeship code (01-16) is required. NFZ does not expose direct provider→queues lookup; for that, take a provider name from this list and feed it as a future provider parameter (not implemented in MVP) or filter results returned by search_appointments.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 250,
+            "description": "Substring of a healthcare provider's official name (long official forms, e.g. '5 WOJSKOWY SZPITAL KLINICZNY Z POLIKLINIKĄ...'). Min 3 chars."
+          },
+          "province": {
+            "type": "string",
+            "enum": [
+              "10",
+              "11",
+              "12",
+              "13",
+              "14",
+              "15",
+              "16",
+              "01",
+              "02",
+              "03",
+              "04",
+              "05",
+              "06",
+              "07",
+              "08",
+              "09"
+            ],
+            "description": "Voivodeship code (01-16): 01=dolnośląskie, 02=kujawsko-pomorskie, 03=lubelskie, 04=lubuskie, 05=łódzkie, 06=małopolskie, 07=mazowieckie, 08=opolskie, 09=podkarpackie, 10=podlaskie, 11=pomorskie, 12=śląskie, 13=świętokrzyskie, 14=warmińsko-mazurskie, 15=wielkopolskie, 16=zachodniopomorskie."
+          },
+          "limit": {
+            "description": "Max results (default 10, NFZ hard cap 25).",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 25
+          }
+        },
+        "required": [
+          "query",
+          "province"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "lookup"
+              },
+              {
+                "type": "string",
+                "const": "error"
+              }
+            ]
+          },
+          "entity": {
+            "description": "Which NFZ dictionary was queried",
+            "type": "string",
+            "enum": [
+              "benefit",
+              "locality",
+              "provider"
+            ]
+          },
+          "results": {
+            "description": "Up to 25 official Polish names ranked by NFZ",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "is_info": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "message": {
+            "type": "string"
+          },
+          "redirect_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    }
+  ],
+  "toolsMetadata": {
+    "search_appointments": {
+      "ui": {
+        "resourceUri": "ui://terminy-leczenia/widget"
+      }
+    },
+    "list_other_places": {
+      "ui": {
+        "resourceUri": "ui://terminy-leczenia/widget"
+      }
+    }
+  },
+  "resources": [
+    {
+      "name": "widget",
+      "uri": "ui://terminy-leczenia/widget",
+      "description": "Interactive map + list of NFZ appointment queues. Shows first-available dates, wait-time statistics, accessibility flags (toilet/ramp/car-park/elevator), and alternative locations of the same provider. Filters by voivodeship, locality, case urgency, and paediatric scope.",
+      "mimeType": "text/html;profile=mcp-app",
+      "_meta": {
+        "ui": {
+          "csp": {
+            "connectDomains": [],
+            "resourceDomains": [
+              "https://a.tile.openstreetmap.org",
+              "https://b.tile.openstreetmap.org",
+              "https://c.tile.openstreetmap.org",
+              "https://tile.openstreetmap.org",
+              "https://unpkg.com",
+              "https://assets.claude.ai",
+              "https://persistent.oaistatic.com",
+              "https://*.oaistatic.com"
+            ],
+            "frameDomains": [],
+            "baseUriDomains": []
+          },
+          "domain": "a86a09e17bb3ccb76f7f0e6892e0ed3f.claudemcpcontent.com",
+          "prefersBorder": false
+        }
+      }
+    }
+  ],
+  "resourceTemplates": [],
+  "prompts": [
+    {
+      "name": "znajdz-termin",
+      "title": "Znajdź termin NFZ",
+      "description": "Wyszukaj najwcześniejszy publiczny termin NFZ dla wskazanego świadczenia. Jeśli specjalność nie jest oficjalną nazwą NFZ (UPPERCASE), promp najpierw uruchomi lookup_benefit, a następnie search_appointments z dopasowanym hasłem.",
+      "arguments": [
+        {
+          "name": "specialty",
+          "description": "Specjalność lub świadczenie (np. 'kardiolog', 'rezonans kolana', 'OTOLARYNGOLOGIA'). Jeśli to lay-term — lookup_benefit przetłumaczy do nazwy NFZ.",
+          "required": true
+        },
+        {
+          "name": "province",
+          "description": "Kod województwa (01-16): 01=dolnośląskie, 02=kujawsko-pomorskie, 03=lubelskie, 04=lubuskie, 05=łódzkie, 06=małopolskie, 07=mazowieckie, 08=opolskie, 09=podkarpackie, 10=podlaskie, 11=pomorskie, 12=śląskie, 13=świętokrzyskie, 14=warmińsko-mazurskie, 15=wielkopolskie, 16=zachodniopomorskie.",
+          "required": false
+        },
+        {
+          "name": "locality",
+          "description": "Konkretna miejscowość (np. 'WARSZAWA'). Pomiń jeśli pacjent pyta o całe województwo.",
+          "required": false
+        },
+        {
+          "name": "urgent",
+          "description": "true = przypadek pilny (case=2); domyślnie stable (case=1).",
+          "required": false
+        },
+        {
+          "name": "children",
+          "description": "true = ogranicz do oddziałów dziecięcych (benefit_for_children=true).",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "sprawdz-objaw",
+      "title": "Sprawdź objaw → świadczenie NFZ",
+      "description": "Z opisu objawu zaproponuj 1-3 oddziały/poradnie NFZ, a potem znajdź najszybszy termin dla wskazanej specjalności (chain: objaw → lookup_benefit → search_appointments).",
+      "arguments": [
+        {
+          "name": "objaw",
+          "description": "Krótki opis objawu lub problemu pacjenta po polsku, np. 'boli mnie krzyż od miesiąca'.",
+          "required": true
+        },
+        {
+          "name": "province",
+          "description": "Kod województwa (01-16): 01=dolnośląskie, 02=kujawsko-pomorskie, 03=lubelskie, 04=lubuskie, 05=łódzkie, 06=małopolskie, 07=mazowieckie, 08=opolskie, 09=podkarpackie, 10=podlaskie, 11=pomorskie, 12=śląskie, 13=świętokrzyskie, 14=warmińsko-mazurskie, 15=wielkopolskie, 16=zachodniopomorskie.",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "checks": {
+    "probe": {
+      "status": "ok",
+      "detail": "HTTP initialize probe succeeded via streamable-http."
+    },
+    "connection": {
+      "status": "ok",
+      "detail": "Connected and initialized successfully."
+    },
+    "initialization": {
+      "status": "ok",
+      "detail": "Initialization info captured."
+    },
+    "capabilities": {
+      "status": "ok",
+      "detail": "Server capabilities captured."
+    },
+    "tools": {
+      "status": "ok",
+      "detail": "5 tools discovered."
+    },
+    "resources": {
+      "status": "ok",
+      "detail": "1 resource discovered."
+    },
+    "resourceTemplates": {
+      "status": "ok",
+      "detail": "0 resource templates discovered."
+    },
+    "prompts": {
+      "status": "ok",
+      "detail": "2 prompts discovered."
+    }
+  },
+  "error": null
+}
