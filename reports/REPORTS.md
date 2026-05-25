@@ -14,8 +14,8 @@ Source fingerprint: `3d73f86` · package version: `1.0.0` · refreshed: 2026-05-
 
 | Report | Generator | Generated | source@ | Status |
 |--------|-----------|-----------|---------|--------|
-| `snapshot.md` | `/snapshot-server` | 2026-05-20 | `dbfdd4d` | ⚠️ STALE |
-| `description.md` | `/describe-server` | — | `—` | ⬜ MISSING |
+| `snapshot.md` | `/snapshot-server` | 2026-05-25 | `3d73f86` | ✅ FRESH |
+| `description.md` | `/describe-server` | 2026-05-25 | `3d73f86` | ✅ FRESH |
 | `design-audit.md` | `/audit-design` | 2026-05-20 | `dbfdd4d` | ⚠️ STALE |
 | `ui-audit.md` | `/improve-ui-with-shadcn` | — | `—` | ⬜ MISSING |
 | `ideas.md` | `/improve` | — | `—` | ⬜ MISSING |
