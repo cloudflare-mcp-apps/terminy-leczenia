@@ -39,6 +39,7 @@ import type {
   WidgetStatus,
 } from "../lib/types";
 import "../styles/globals.css";
+import { WtyczkiFooter } from "../components/wtyczki-footer";
 
 // ============================================================================
 // Leaflet types (loaded from CDN)
@@ -831,6 +832,7 @@ function Widget() {
           </span>
         )}
       </div>
+      <WtyczkiFooter app={app} slug="terminy-leczenia" cta="Wtyczka dla Twojej placówki? Porozmawiajmy" />
     </div>
   );
 }

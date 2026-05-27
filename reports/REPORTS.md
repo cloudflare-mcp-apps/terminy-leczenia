@@ -8,14 +8,14 @@ kind: manifest
 
 **AI workflow: read this first.** Single entry-point to every generated report for this server, with freshness vs current source. Auto-generated — do not hand-edit. Contract: `production_docs/REPORTS_CONVENTION.md`.
 
-Source fingerprint: `3d73f86` · package version: `1.0.0` · refreshed: 2026-05-25
+Source fingerprint: `de7ccea` · package version: `1.0.0` · refreshed: 2026-05-25
 
 ## Canonical reports (`reports/`)
 
 | Report | Generator | Generated | source@ | Status |
 |--------|-----------|-----------|---------|--------|
-| `snapshot.md` | `/snapshot-server` | 2026-05-25 | `3d73f86` | ✅ FRESH |
-| `description.md` | `/describe-server` | 2026-05-25 | `3d73f86` | ✅ FRESH |
+| `snapshot.md` | `/snapshot-server` | 2026-05-25 | `3d73f86` | ⚠️ STALE |
+| `description.md` | `/describe-server` | 2026-05-25 | `3d73f86` | ⚠️ STALE |
 | `design-audit.md` | `/audit-design` | 2026-05-20 | `dbfdd4d` | ⚠️ STALE |
 | `ui-audit.md` | `/improve-ui-with-shadcn` | — | `—` | ⬜ MISSING |
 | `ideas.md` | `/improve` | — | `—` | ⬜ MISSING |
