@@ -832,7 +832,7 @@ function Widget() {
           </span>
         )}
       </div>
-      <WtyczkiFooter app={app} slug="terminy-leczenia" cta="Wtyczka dla Twojej placówki? Porozmawiajmy" />
+      <WtyczkiFooter app={app} slug="terminy-leczenia" />
     </div>
   );
 }
