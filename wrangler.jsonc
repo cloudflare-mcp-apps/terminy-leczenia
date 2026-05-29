@@ -42,7 +42,8 @@
   ],
 
   "vars": {
-    "AUTHKIT_DOMAIN": "exciting-domain-65.authkit.app"
+    "AUTHKIT_DOMAIN": "exciting-domain-65.authkit.app",
+    "OAUTH_BASE_URL": "https://panel.wtyczki.ai"
   },
 
   "routes": [

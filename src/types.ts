@@ -35,6 +35,7 @@ export interface Env {
    * Example: "exciting-domain-65.authkit.app"
    */
   AUTHKIT_DOMAIN: string;
+  OAUTH_BASE_URL: string;
 
   // ========================================================================
   // OPTIONAL: Common Cloudflare Bindings
