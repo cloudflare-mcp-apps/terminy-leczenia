@@ -40,6 +40,19 @@
   ],
 
   /**
+   * Workers Analytics Engine — shared fleet usage dataset (`mcp_usage`).
+   * One data point per tools/call: blobs = [server, userId, email, tool].
+   * Read by the monitoring repo (src/collectors/mcp_usage.py) for per-user /
+   * per-server / per-tool KPIs. Same dataset across every server.
+   */
+  "analytics_engine_datasets": [
+    {
+      "binding": "USAGE",
+      "dataset": "mcp_usage"
+    }
+  ],
+
+  /**
    * Shared platform KV namespace — used for NFZ response caching.
    * Keys prefixed `nfz:`. TTL: 24h for dictionaries, 1h for queue results.
    */
